@@ -1,0 +1,67 @@
+name: Bug Report
+description: Etwas funktioniert nicht wie erwartet
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Danke für deinen Bug-Report! Bitte fülle alle Felder so genau wie möglich aus.
+
+  - type: input
+    id: version
+    attributes:
+      label: Element Positioner Version
+      description: Welche Version ist installiert? (HACS → Element Positioner)
+      placeholder: "v0.24"
+    validations:
+      required: true
+
+  - type: input
+    id: ha_version
+    attributes:
+      label: Home Assistant Version
+      placeholder: "2025.4.0"
+    validations:
+      required: true
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser
+      placeholder: "Chrome 124 / Safari 17 / Firefox 125"
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Was passiert?
+      description: Beschreibe das Problem so genau wie möglich
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Was sollte passieren?
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Schritte zum Reproduzieren
+      placeholder: |
+        1. Editor aktivieren
+        2. Tab X öffnen
+        3. Element ziehen
+        4. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: console
+    attributes:
+      label: Browser-Console (F12)
+      description: Fehler aus der Browser-Konsole einfügen
+      render: shell

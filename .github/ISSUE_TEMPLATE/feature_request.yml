@@ -1,0 +1,25 @@
+name: Feature Request
+description: Neues Feature oder Verbesserung vorschlagen
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Feature-Beschreibung
+      description: Was soll der Editor können?
+    validations:
+      required: true
+
+  - type: textarea
+    id: usecase
+    attributes:
+      label: Anwendungsfall
+      description: Warum ist dieses Feature nützlich? Welches Problem löst es?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternativen
+      description: Gibt es einen Workaround oder alternative Lösung?
