@@ -1,7 +1,4 @@
 {
   "name": "Element Positioner",
-  "content_in_root": true,
-  "filename": "drag_editor.js",
-  "homeassistant": "2023.6.0",
   "render_readme": true
 }

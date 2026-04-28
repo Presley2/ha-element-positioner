@@ -30,7 +30,7 @@ Positioniere Elemente direkt auf deinem Grundriss — ohne Code zu schreiben.
 
 ## Voraussetzungen
 
-- Home Assistant `2023.6` oder neuer
+- Home Assistant `2023.9` oder neuer
 - `picture-elements` Card auf einem Dashboard
 - Lovelace im **Speicher-Modus** (nicht YAML-Modus)
 - Admin-Rechte
@@ -41,43 +41,29 @@ Positioniere Elemente direkt auf deinem Grundriss — ohne Code zu schreiben.
 
 ### HACS (empfohlen)
 
-1. HACS öffnen → **Frontend**
+1. HACS öffnen → **Integrationen**
 2. Drei-Punkte-Menü → **Benutzerdefinierte Repositories**
-3. URL: `https://github.com/Presley2/ha-element-positioner` — Kategorie: **Lovelace**
-4. Repository erscheint in der Liste → **Herunterladen**
-5. Browser Hard Refresh: `Ctrl+Shift+R`
+3. URL: `https://github.com/Presley2/ha-element-positioner` — Kategorie: **Integration**
+4. **Element Positioner** in der Liste suchen → **Herunterladen**
+5. HA neu starten
 
-### Sidebar-Panel (manuell, einmalig)
+### Integration einrichten
 
-HACS installiert nur die Lovelace-Ressource. Das Sidebar-Panel muss einmalig manuell eingerichtet werden:
+Nach dem Neustart:
 
-1. `drag_editor_panel.js` aus dem [neuesten Release](https://github.com/Presley2/ha-element-positioner/releases/latest) herunterladen und in `/config/www/` kopieren
-
-2. In `configuration.yaml` eintragen:
-
-```yaml
-panel_custom:
-  - name: drag-editor-panel
-    sidebar_title: Element Positioner
-    sidebar_icon: mdi:pencil-ruler
-    url_path: drag-editor
-    module_url: /local/drag_editor_panel.js
-```
-
-3. HA neu starten — oder **Entwicklerwerkzeuge → YAML → Konfiguration neu laden → Panel Custom**
+1. **Einstellungen → Integrationen → Integration hinzufügen**
+2. **„Element Positioner"** suchen → auswählen → **Senden**
+3. Fertig — Sidebar-Panel erscheint automatisch ✅
 
 ### Manuelle Installation (ohne HACS)
 
 <details>
 <summary>Schritte anzeigen</summary>
 
-1. `drag_editor.js` und `drag_editor_panel.js` aus dem [neuesten Release](https://github.com/Presley2/ha-element-positioner/releases/latest) herunterladen
-2. Beide Dateien in `/config/www/` kopieren
-3. In HA: **Einstellungen → Dashboards → Ressourcen** → Ressource hinzufügen:
-   - URL: `/local/drag_editor.js`
-   - Typ: JavaScript-Modul
-4. `panel_custom` wie oben in `configuration.yaml` eintragen
-5. HA neu starten → `Ctrl+Shift+R`
+1. Den Ordner `custom_components/element_positioner/` aus dem [neuesten Release](https://github.com/Presley2/ha-element-positioner/releases/latest) herunterladen
+2. In `/config/custom_components/element_positioner/` kopieren
+3. HA neu starten
+4. **Einstellungen → Integrationen → Integration hinzufügen → Element Positioner**
 
 </details>
 
@@ -90,7 +76,7 @@ panel_custom:
 3. Element **ziehen** → Position wird sofort gespeichert
 4. **Doppelklick** auf Kreuz → YAML/JSON Editor öffnet sich
 
-Alle Shortcuts und Funktionen sind direkt im Sidebar-Panel unter **Element Positioner** dokumentiert.
+Alle Shortcuts und Funktionen sind direkt im Sidebar-Panel dokumentiert.
 
 ---
 
@@ -117,13 +103,10 @@ Alle Shortcuts und Funktionen sind direkt im Sidebar-Panel unter **Element Posit
 
 **Position speichert nicht**  
 → HA-Verbindung prüfen: `F12 → Console` auf Fehler prüfen  
-→ Admin-Rechte im Lovelace-Speicher-Modus erforderlich
+→ Admin-Rechte und Lovelace-Speicher-Modus erforderlich
 
-**Darstellung verzerrt auf Safari/iPad**  
-→ Ab v0.24 behoben — Hard Refresh und ggf. Safari-Cache leeren
-
-**Editor lädt nicht nach Tab-Wechsel**  
-→ Toggle kurz aus- und wieder einschalten
+**Integration erscheint nicht in der Liste**  
+→ HA nach HACS-Installation neu gestartet? Dann erneut suchen.
 
 ---
 
