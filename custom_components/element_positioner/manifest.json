@@ -6,7 +6,6 @@
   "issue_tracker": "https://github.com/Presley2/ha-element-positioner/issues",
   "codeowners": ["@Presley2"],
   "requirements": [],
-  "dependencies": ["frontend"],
   "iot_class": "calculated",
   "config_flow": true
 }

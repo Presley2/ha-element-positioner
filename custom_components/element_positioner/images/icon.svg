@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">
+  <!-- Background -->
+  <rect width="500" height="500" rx="80" fill="#1a1a2e"/>
+
+  <!-- Floor plan outline -->
+  <rect x="60" y="80" width="380" height="280" rx="8" fill="none" stroke="#334" stroke-width="12"/>
+  <!-- Room dividers -->
+  <line x1="220" y1="80" x2="220" y2="240" stroke="#334" stroke-width="10"/>
+  <line x1="220" y1="240" x2="440" y2="240" stroke="#334" stroke-width="10"/>
+
+  <!-- Crosshair 1 — orange, large, center -->
+  <line x1="250" y1="190" x2="250" y2="230" stroke="#FF5733" stroke-width="3.5"/>
+  <line x1="230" y1="210" x2="270" y2="210" stroke="#FF5733" stroke-width="3.5"/>
+  <circle cx="250" cy="210" r="10" fill="none" stroke="#FF5733" stroke-width="3"/>
+  <circle cx="250" cy="210" r="3" fill="#FF5733"/>
+
+  <!-- Crosshair 2 — smaller, top-left room -->
+  <line x1="130" y1="148" x2="130" y2="178" stroke="#FF5733" stroke-width="3"/>
+  <line x1="115" y1="163" x2="145" y2="163" stroke="#FF5733" stroke-width="3"/>
+  <circle cx="130" cy="163" r="8" fill="none" stroke="#FF5733" stroke-width="2.5"/>
+  <circle cx="130" cy="163" r="2.5" fill="#FF5733"/>
+
+  <!-- Crosshair 3 — bottom-right room -->
+  <line x1="340" y1="278" x2="340" y2="308" stroke="#FF5733" stroke-width="3"/>
+  <line x1="325" y1="293" x2="355" y2="293" stroke="#FF5733" stroke-width="3"/>
+  <circle cx="340" cy="293" r="8" fill="none" stroke="#FF5733" stroke-width="2.5"/>
+  <circle cx="340" cy="293" r="2.5" fill="#FF5733"/>
+
+  <!-- Drag arrow hint -->
+  <path d="M265 200 Q290 185 305 200" fill="none" stroke="#FF5733" stroke-width="2.5" stroke-dasharray="4,3" opacity="0.7"/>
+  <polygon points="305,195 310,203 300,205" fill="#FF5733" opacity="0.7"/>
+
+  <!-- Status bar at bottom -->
+  <rect x="60" y="395" width="380" height="40" rx="8" fill="#FF5733" opacity="0.15"/>
+  <circle cx="88" cy="415" r="7" fill="#4CAF50"/>
+  <rect x="105" y="409" width="120" height="6" rx="3" fill="#FF5733" opacity="0.6"/>
+  <rect x="105" y="420" width="80" height="5" rx="2.5" fill="#667" opacity="0.5"/>
+  <!-- Undo/redo icons in bar -->
+  <path d="M355 408 Q348 403 342 408 L342 415" fill="none" stroke="#FF5733" stroke-width="2.5" stroke-linecap="round"/>
+  <polygon points="342,407 338,414 346,414" fill="#FF5733" opacity="0.8"/>
+  <path d="M375 408 Q382 403 388 408 L388 415" fill="none" stroke="#FF5733" stroke-width="2.5" stroke-linecap="round"/>
+  <polygon points="388,407 384,414 392,414" fill="#FF5733" opacity="0.8"/>
+</svg>
