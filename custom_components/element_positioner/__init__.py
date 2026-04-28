@@ -3,6 +3,7 @@ import logging
 from pathlib import Path
 
 from homeassistant.components.frontend import async_register_built_in_panel, add_extra_js_url
+from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 
@@ -21,11 +22,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Panel + Lovelace-Resource beim Start registrieren."""
 
     # Statische Dateien aus dem custom_component-Verzeichnis ausliefern
-    hass.http.register_static_path(
-        STATIC_PATH,
-        str(FRONTEND_DIR),
-        cache_headers=False,
-    )
+    await hass.http.async_register_static_paths([
+        StaticPathConfig(STATIC_PATH, str(FRONTEND_DIR), cache_headers=False)
+    ])
 
     # drag_editor.js auf allen Dashboard-Seiten laden (wie card-mod, browser_mod)
     add_extra_js_url(hass, f"{STATIC_PATH}/drag_editor.js")
