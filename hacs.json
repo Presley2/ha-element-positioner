@@ -1,4 +1,6 @@
 {
   "name": "Element Positioner",
+  "homeassistant": "2023.9.0",
+  "hacs": "2.0.0",
   "render_readme": true
 }
