@@ -1157,7 +1157,7 @@
 
         var picInfo = getPicElsCard(view);
         if (!picInfo) {
-          setBar('ℹ️ [' + viewIdx + '] "' + (view.title || '?') + '" — kein picture-elements');
+          setBar('✓ Bereit — auf einem Dashboard mit picture-elements navigieren');
           return;
         }
 
