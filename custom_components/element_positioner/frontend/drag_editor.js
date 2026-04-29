@@ -1,7 +1,7 @@
-// HA Drag Editor v24 — Safari/iPad fix: position:absolute auf documentElement für layer/crosshairs/resizeBox/pasteBtns (kein position:fixed in transform-Containern)
+// HA Drag Editor v25 — Performance: Root-Cache + rAF-Debounce; Fixes: Resize-Listener-Leak, YAML-Esc-Leak; UX: Duplicate-Button, Resize-Handles 18px, Scale-Input, Delete-Confirm-Modal, dynamisches Stacking-Offset
 (function () {
   'use strict';
-  console.log('%c[HA-Drag-Editor] v24 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] v25 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -24,12 +24,28 @@
   var selectedElements = {};  // { idx: { t, l, h } }
 
   // Element Search
-  var searchQuery = '';
   var allHandles = [];  // { idx, h, name }
 
   // Resize Mode
   var resizeMode = localStorage.getItem('ha_drag_resize_mode') === 'true';
   var resizeActive = null;
+
+  // Root-Cache: getActiveRoot() ist teuer (traversiert ganzen Shadow DOM) — max 1× pro 500ms
+  var _rootCache = null;
+  var _rootCacheTime = 0;
+  var ROOT_CACHE_TTL = 500;
+
+  function getCachedRoot() {
+    var now = Date.now();
+    if (_rootCache && (now - _rootCacheTime) < ROOT_CACHE_TTL && document.documentElement.contains(_rootCache)) {
+      return _rootCache;
+    }
+    _rootCache = getActiveRoot();
+    _rootCacheTime = now;
+    return _rootCache;
+  }
+
+  function invalidateRootCache() { _rootCache = null; _rootCacheTime = 0; }
 
   // Pfeiltasten-Target: zuletzt angeklicktes Kreuz
   var lastArrowTarget = null;
@@ -105,7 +121,7 @@
   }
 
   function getRect() {
-    var root = getActiveRoot();
+    var root = getCachedRoot();
     return root ? root.getBoundingClientRect() : null;
   }
 
@@ -526,6 +542,13 @@
 
   function hideResizeBox() {
     if (state.resizeBox) { state.resizeBox.remove(); state.resizeBox = null; }
+    if (state._resizeListeners) {
+      document.removeEventListener('mousemove', state._resizeListeners.move, true);
+      document.removeEventListener('mouseup',   state._resizeListeners.up,   true);
+      window.removeEventListener('resize', state._resizeListeners.placeBox);
+      window.removeEventListener('scroll', state._resizeListeners.placeBox, true);
+      state._resizeListeners = null;
+    }
     resizeActive = null;
   }
 
@@ -598,7 +621,7 @@
     ];
     handles.forEach(function (hh) {
       var grip = document.createElement('div');
-      grip.style.cssText = 'position:absolute;width:12px;height:12px;background:#FFD700;border:2px solid #000;border-radius:2px;left:' + hh.x + ';top:' + hh.y + ';transform:translate(-50%,-50%);cursor:' + hh.cur + ';pointer-events:all;';
+      grip.style.cssText = 'position:absolute;width:18px;height:18px;background:#FFD700;border:2px solid #000;border-radius:3px;left:' + hh.x + ';top:' + hh.y + ';transform:translate(-50%,-50%);cursor:' + hh.cur + ';pointer-events:all;';
       grip.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
         resizeActive = {
@@ -620,20 +643,50 @@
     label.style.cssText = 'position:absolute;bottom:-22px;left:0;background:#000;color:#FFD700;font:bold 10px monospace;padding:2px 6px;border-radius:3px;pointer-events:none;';
     box.appendChild(label);
 
+    var scaleInputRef = null;
     function updateLabel() {
       label.textContent = 'Scale: ' + (scale * 100).toFixed(0) + '%  (' + Math.round(baseW * scale) + '×' + Math.round(baseH * scale) + 'px)';
+      if (scaleInputRef) scaleInputRef.value = (scale * 100).toFixed(0);
     }
     updateLabel();
 
+    // Scale-Direkteingabe + Preset-Buttons
+    var scaleCtrl = document.createElement('div');
+    scaleCtrl.style.cssText = 'position:absolute;bottom:-52px;left:0;display:flex;gap:4px;align-items:center;pointer-events:all;';
+    var scaleInput = document.createElement('input');
+    scaleInput.type = 'number'; scaleInput.min = '5'; scaleInput.max = '1000'; scaleInput.step = '1';
+    scaleInput.value = (scale * 100).toFixed(0);
+    scaleInput.style.cssText = 'width:54px;background:#111;color:#FFD700;border:1px solid #FFD700;padding:2px 4px;border-radius:3px;font:bold 10px monospace;text-align:center;outline:none;';
+    scaleInput.addEventListener('change', function () {
+      var v = parseFloat(this.value) / 100;
+      if (isNaN(v) || v < 0.05 || v > 10) return;
+      scale = v;
+      domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
+      placeBox(); updateLabel();
+    });
+    scaleCtrl.appendChild(scaleInput);
+    scaleInputRef = scaleInput;
+    [50, 75, 100, 150, 200].forEach(function (pct) {
+      var pb = document.createElement('button');
+      pb.style.cssText = 'background:#222;color:#FFD700;border:1px solid #555;padding:2px 5px;border-radius:3px;font:bold 9px monospace;cursor:pointer;';
+      pb.textContent = pct + '%';
+      pb.addEventListener('click', function (e) {
+        e.stopPropagation();
+        scale = pct / 100;
+        domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
+        placeBox(); updateLabel();
+      });
+      scaleCtrl.appendChild(pb);
+    });
+    box.appendChild(scaleCtrl);
+
     // Resize-Mausevents — proportionale Skalierung via transform:scale
+    var _resizeMoveScheduled = false;
     function onMove(e) {
       if (!resizeActive) return;
       var dx = e.clientX - resizeActive.sx;
       var dy = e.clientY - resizeActive.sy;
-      var sign = 1;
       var id = resizeActive.id;
-      // Diagonal-Skalierung anhand der Größe-Veränderung (positiv = größer)
-      // Eckhandles: kombiniertes dx+dy. Kantenhandles: nur die relevante Achse.
       var delta = 0;
       if (id === 'se') delta = (dx + dy) / 2;
       else if (id === 'nw') delta = -(dx + dy) / 2;
@@ -643,19 +696,22 @@
       else if (id === 'w') delta = -dx;
       else if (id === 's') delta = dy;
       else if (id === 'n') delta = -dy;
-      // Skalierungs-Sensitivität: 200px Bewegung = ×2
       var newScale = resizeActive.sScale * (1 + delta / 200);
       newScale = Math.max(0.05, Math.min(10, newScale));
-      // Snap auf die aktuell gewählte Snap-Stufe (in % Schritten); für Scale halbiert
       if (snapGrid !== 'off') {
         var step = parseFloat(snapGrid) / 100;
         if (step > 0) newScale = Math.round(newScale / step) * step;
       }
       scale = newScale;
-      // Live im DOM anwenden
-      domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
-      placeBox();
-      updateLabel();
+      if (!_resizeMoveScheduled) {
+        _resizeMoveScheduled = true;
+        requestAnimationFrame(function () {
+          _resizeMoveScheduled = false;
+          domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
+          placeBox();
+          updateLabel();
+        });
+      }
     }
     function onUp() {
       if (!resizeActive) return;
@@ -680,7 +736,8 @@
     document.addEventListener('mousemove', onMove, true);
     document.addEventListener('mouseup', onUp, true);
 
-    // Repositionierung bei Resize/Scroll
+    // Listener-Referenzen speichern → sauberes Cleanup in hideResizeBox()
+    state._resizeListeners = { move: onMove, up: onUp, placeBox: placeBox };
     state._resizeBoxReposition = placeBox;
     window.addEventListener('resize', placeBox);
     window.addEventListener('scroll', placeBox, true);
@@ -846,6 +903,37 @@
       setTimeout(function () { copyElBtn.textContent = '📋 Element kopieren'; overlay.remove(); }, 1200);
     });
 
+    var dupBtn = document.createElement('button');
+    dupBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
+    dupBtn.textContent = '⧉ Duplizieren';
+    dupBtn.addEventListener('click', function () {
+      var liveConn = getConn();
+      if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; return; }
+      dupBtn.textContent = 'Dupliziert...'; dupBtn.disabled = true;
+      liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
+        .then(function (freshCfg) {
+          var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
+          var clone = JSON.parse(JSON.stringify(freshCard.elements[elIdx]));
+          var s = unwrapElStyle(clone);
+          if (s) {
+            s.top  = Math.min(95, parseFloat(s.top)  + 5).toFixed(1) + '%';
+            s.left = Math.min(95, parseFloat(s.left) + 5).toFixed(1) + '%';
+          }
+          freshCard.elements.push(clone);
+          return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
+        })
+        .then(function () {
+          setBar('✓ [' + elIdx + '] ' + name + ' dupliziert');
+          dupBtn.textContent = '✓ Dupliziert!';
+          setTimeout(function () { closePopup(); setTimeout(initEditor, 300); }, 800);
+        })
+        .catch(function (err) {
+          dupBtn.textContent = '⧉ Duplizieren'; dupBtn.disabled = false;
+          errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
+          errMsg.style.display = 'block';
+        });
+    });
+
     var editBtn = document.createElement('button');
     editBtn.style.cssText = 'background:#555;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
     editBtn.textContent = 'Bearbeiten';
@@ -893,49 +981,62 @@
     deleteBtn.style.cssText = 'background:#7a1a1a;color:#ffaaaa;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;margin-right:auto;';
     deleteBtn.textContent = '🗑 Löschen';
     deleteBtn.addEventListener('click', function () {
-      if (deleteBtn.dataset.confirm !== '1') {
-        deleteBtn.textContent = '⚠ Sicher?';
-        deleteBtn.dataset.confirm = '1';
-        setTimeout(function () { if (deleteBtn.dataset.confirm === '1') { deleteBtn.textContent = '🗑 Löschen'; deleteBtn.dataset.confirm = '0'; } }, 3000);
-        return;
-      }
-      var liveConn = getConn();
-      if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; return; }
-      deleteBtn.textContent = 'Lösche...';
-      deleteBtn.disabled = true;
-      liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
-        .then(function (freshCfg) {
-          var card = getCardByPath(freshCfg, viewIdx, cardPath);
-          card.elements.splice(elIdx, 1);
-          return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
-        })
-        .then(function () {
-          setBar('🗑 [' + elIdx + '] ' + name + ' gelöscht');
-          overlay.remove();
-          setTimeout(initEditor, 600);
-        })
-        .catch(function (err) {
-          deleteBtn.textContent = '🗑 Löschen';
-          deleteBtn.disabled = false;
-          deleteBtn.dataset.confirm = '0';
-          errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
-          errMsg.style.display = 'block';
-        });
+      // Bestätigungs-UI einblenden
+      deleteBtn.style.display = 'none';
+      var confirmRow = document.createElement('div');
+      confirmRow.style.cssText = 'display:flex;gap:6px;align-items:center;margin-right:auto;';
+      var confirmTxt = document.createElement('span');
+      confirmTxt.style.cssText = 'color:#ffaaaa;font:11px monospace;';
+      confirmTxt.textContent = 'Wirklich löschen?';
+      var yesBtn = document.createElement('button');
+      yesBtn.style.cssText = 'background:#cc2200;color:white;border:none;padding:5px 12px;border-radius:4px;font:bold 11px monospace;cursor:pointer;';
+      yesBtn.textContent = '✓ Ja, löschen';
+      var noBtn = document.createElement('button');
+      noBtn.style.cssText = 'background:#444;color:#ccc;border:none;padding:5px 10px;border-radius:4px;font:11px monospace;cursor:pointer;';
+      noBtn.textContent = 'Abbrechen';
+      noBtn.addEventListener('click', function () { confirmRow.remove(); deleteBtn.style.display = ''; });
+      yesBtn.addEventListener('click', function () {
+        var liveConn = getConn();
+        if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; confirmRow.remove(); deleteBtn.style.display = ''; return; }
+        yesBtn.textContent = 'Lösche...'; yesBtn.disabled = true; noBtn.disabled = true;
+        liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
+          .then(function (freshCfg) {
+            var card = getCardByPath(freshCfg, viewIdx, cardPath);
+            card.elements.splice(elIdx, 1);
+            return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
+          })
+          .then(function () {
+            setBar('🗑 [' + elIdx + '] ' + name + ' gelöscht');
+            closePopup();
+            setTimeout(initEditor, 600);
+          })
+          .catch(function (err) {
+            yesBtn.textContent = '✓ Ja, löschen'; yesBtn.disabled = false; noBtn.disabled = false;
+            errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
+            errMsg.style.display = 'block';
+          });
+      });
+      confirmRow.appendChild(confirmTxt);
+      confirmRow.appendChild(yesBtn);
+      confirmRow.appendChild(noBtn);
+      btns.insertBefore(confirmRow, btns.firstChild);
     });
+
+    function closePopup() { overlay.remove(); document.removeEventListener('keydown', escHandler); }
+    function escHandler(e) { if (e.key === 'Escape') closePopup(); }
+    document.addEventListener('keydown', escHandler);
 
     var closeBtn = document.createElement('button');
     closeBtn.style.cssText = 'background:#333;color:#ccc;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
     closeBtn.textContent = 'Schließen';
-    closeBtn.addEventListener('click', function () { overlay.remove(); });
+    closeBtn.addEventListener('click', closePopup);
 
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
-    document.addEventListener('keydown', function esc(e) {
-      if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); }
-    });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) closePopup(); });
 
     btns.appendChild(deleteBtn);
     btns.appendChild(copyBtn);
     btns.appendChild(copyElBtn);
+    btns.appendChild(dupBtn);
     btns.appendChild(editBtn);
     btns.appendChild(saveBtn);
     btns.appendChild(closeBtn);
@@ -1010,6 +1111,7 @@
   var generation = 0;
 
   function cleanup() {
+    invalidateRootCache();
     generation++;
     state.placeHandlers = [];
     if (state.layer) { state.layer.remove(); state.layer = null; }
@@ -1106,7 +1208,6 @@
       var posKey = Math.round(tPct) + '_' + Math.round(lPct);
       var stackIdx = usedPos[posKey] || 0;
       usedPos[posKey] = stackIdx + 1;
-      var stackOffsetPx = stackIdx * 14;
 
       var h = makeCrosshair(name);
       layer.appendChild(h);
@@ -1116,8 +1217,10 @@
         var r = getRect(); if (!r) return;
         var sx = window.pageXOffset || document.documentElement.scrollLeft || 0;
         var sy = window.pageYOffset || document.documentElement.scrollTop  || 0;
-        h.style.left = (sx + r.left + lPct / 100 * r.width  + stackOffsetPx) + 'px';
-        h.style.top  = (sy + r.top  + tPct / 100 * r.height + stackOffsetPx) + 'px';
+        // Offset skaliert proportional zur Card-Breite (2.5% pro Ebene, mind. 8px)
+        var offsetPx = stackIdx * Math.max(8, r.width * 0.025);
+        h.style.left = (sx + r.left + lPct / 100 * r.width  + offsetPx) + 'px';
+        h.style.top  = (sy + r.top  + tPct / 100 * r.height + offsetPx) + 'px';
       }
       placeHandle();
       if (!state.placeHandlers) state.placeHandlers = [];
@@ -1172,7 +1275,7 @@
 
         // Resize-Modus → öffne Resize-Box statt Drag
         if (resizeMode) {
-          var rRoot = getActiveRoot();
+          var rRoot = getCachedRoot();
           if (!rRoot) { setBar('❌ Kein picture-elements Root gefunden'); return; }
           var rDom = findDomElByPos(rRoot, tPct, lPct);
           if (!rDom) { setBar('❌ DOM-Element nicht gefunden (Tab-Wechsel? Neu laden)'); return; }
@@ -1210,14 +1313,14 @@
             var selEl = picInfo.card.elements[selIdx];
             var selInfo = getElInfo(selEl);
             if (selInfo) {
-              var selDom = findDomElByPos(getActiveRoot(),  selInfo.top, selInfo.left);
+              var selDom = findDomElByPos(getCachedRoot(), selInfo.top, selInfo.left);
               bulkInitStates[selIdx] = { t: selInfo.top, l: selInfo.left, dom: selDom };
             }
           }
         });
 
         // Live-Drag: DOM-Element finden und referenzieren
-        var activeRoot = getActiveRoot();
+        var activeRoot = getCachedRoot();
         var activeDom = findDomElByPos(activeRoot, tPct, lPct);
 
         globalActive = {
@@ -1377,16 +1480,23 @@
     else if (isRedo) { e.preventDefault(); performRedo(currentWsPath, function () { initEditor(); }); }
   }, true);
 
-  // Single window-resize + scroll Handler — repositioniert alle Kreuze und Paste-Buttons
+  // Single window-resize + scroll Handler — rAF-debounced damit nicht 100× pro Scroll feuert
+  var _repositionScheduled = false;
   function repositionAll() {
-    if (state.placeHandlers) {
-      for (var i = 0; i < state.placeHandlers.length; i++) {
-        try { state.placeHandlers[i](); } catch (e) {}
+    if (_repositionScheduled) return;
+    _repositionScheduled = true;
+    requestAnimationFrame(function () {
+      _repositionScheduled = false;
+      invalidateRootCache();
+      if (state.placeHandlers) {
+        for (var i = 0; i < state.placeHandlers.length; i++) {
+          try { state.placeHandlers[i](); } catch (e) {}
+        }
       }
-    }
-    if (state._pasteBtnReposition) {
-      try { state._pasteBtnReposition(); } catch (e) {}
-    }
+      if (state._pasteBtnReposition) {
+        try { state._pasteBtnReposition(); } catch (e) {}
+      }
+    });
   }
   window.addEventListener('resize', repositionAll);
   window.addEventListener('scroll', repositionAll, true);
@@ -1398,6 +1508,7 @@
     var newPath = window.location.pathname;
     if (newPath !== lastNavPath) {
       lastNavPath = newPath;
+      invalidateRootCache();
       if (state.enabled) setTimeout(initEditor, 500);
     }
   };
