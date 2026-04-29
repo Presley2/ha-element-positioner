@@ -83,3 +83,25 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """Lovelace-Resource beim Löschen der Integration entfernen."""
+    url = f"{STATIC_PATH}/drag_editor.js"
+    try:
+        lovelace = hass.data.get("lovelace")
+        if lovelace and "resources" in lovelace:
+            res_store = lovelace["resources"]
+            await res_store.async_load()
+            for item in res_store.async_items():
+                if url in item.get("url", ""):
+                    await res_store.async_delete_item(item["id"])
+                    _LOGGER.info("Lovelace-Resource entfernt: %s", url)
+                    return
+        store = Store(hass, 1, LOVELACE_RESOURCES_KEY)
+        data = await store.async_load() or {"items": []}
+        data["items"] = [i for i in data.get("items", []) if url not in i.get("url", "")]
+        await store.async_save(data)
+        _LOGGER.info("Lovelace-Resource aus Storage entfernt: %s", url)
+    except Exception as exc:
+        _LOGGER.warning("Cleanup fehlgeschlagen: %s", exc)
