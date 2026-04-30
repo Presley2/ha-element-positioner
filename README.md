@@ -1,5 +1,7 @@
 # Element Positioner
 
+<img src="custom_components/element_positioner/images/icon.png" width="80" align="left" style="margin-right:16px"/>
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/hacs/integration)
 [![GitHub release](https://img.shields.io/github/v/release/Presley2/ha-element-positioner?style=flat-square)](https://github.com/Presley2/ha-element-positioner/releases)
 [![GitHub downloads](https://img.shields.io/github/downloads/Presley2/ha-element-positioner/total?style=flat-square)](https://github.com/Presley2/ha-element-positioner/releases)
@@ -7,6 +9,8 @@
 
 **Visueller Drag & Drop Editor für Home Assistant `picture-elements` Dashboards.**  
 Positioniere Elemente direkt auf deinem Grundriss — ohne Code zu schreiben.
+
+<br clear="left"/>
 
 ---
 
