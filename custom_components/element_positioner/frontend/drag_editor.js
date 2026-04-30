@@ -1147,6 +1147,14 @@
     var wsPath = (dashPath === 'lovelace') ? null : dashPath;
     currentWsPath = wsPath;
 
+    // HA-interne Seiten haben kein Lovelace-Dashboard — kein API-Call, direkt Bereit-Meldung
+    var HA_INTERNAL = ['config', 'developer-tools', 'logbook', 'history', 'profile',
+                       'map', 'energy', 'todo', 'calendar', 'shopping-list', 'media-browser'];
+    if (HA_INTERNAL.indexOf(dashPath) !== -1) {
+      setBar('✓ Bereit — auf einem Dashboard mit picture-elements navigieren');
+      return;
+    }
+
     setBar('Lade...');
 
     conn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
@@ -1174,7 +1182,15 @@
         }
         tryBuild(10);
       })
-      .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
+      .catch(function (err) {
+        var msg = err && (err.message || err.code || JSON.stringify(err));
+        // "not_found" / "unknown_dashboard" → kein Lovelace auf dieser Seite, kein Fehler
+        if (msg && (msg.indexOf('not_found') !== -1 || msg.indexOf('unknown') !== -1 || msg.indexOf('404') !== -1)) {
+          setBar('✓ Bereit — auf einem Dashboard mit picture-elements navigieren');
+        } else {
+          setBar('❌ ' + msg);
+        }
+      });
   }
 
   function buildHandles(cfg, viewIdx, picInfo, wsPath) {
