@@ -518,7 +518,7 @@
   }
 
   function filterHandles(query) {
-    searchQuery = query.toLowerCase();
+    var searchQuery = query.toLowerCase();
     var matches = 0;
     allHandles.forEach(function (item) {
       var match = !query || item.name.toLowerCase().indexOf(searchQuery) !== -1;
