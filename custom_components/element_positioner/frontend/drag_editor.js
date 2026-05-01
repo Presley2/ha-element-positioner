@@ -1,7 +1,89 @@
-// HA Drag Editor v25 — Performance: Root-Cache + rAF-Debounce; Fixes: Resize-Listener-Leak, YAML-Esc-Leak; UX: Duplicate-Button, Resize-Handles 18px, Scale-Input, Delete-Confirm-Modal, dynamisches Stacking-Offset
+// HA Drag Editor v28 — Bilingual DE/EN (auto-detect via navigator.language)
 (function () {
   'use strict';
-  console.log('%c[HA-Drag-Editor] v25 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] v28 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+
+  // ── i18n ──────────────────────────────────────────────────────────────────
+  var DE = (navigator.language || 'en').toLowerCase().startsWith('de');
+
+  var T = {
+    loading:            DE ? 'Lade...'                                   : 'Loading...',
+    ready:              DE ? '✓ Bereit — Dashboard mit picture-elements navigieren' : '✓ Ready — navigate to a dashboard with a picture-elements card',
+    noConnection:       DE ? '❌ HA-Verbindung nicht gefunden'            : '❌ HA connection not found',
+    noView:             DE ? '❌ View nicht gefunden'                     : '❌ View not found',
+    noRoot:             DE ? '❌ #root nicht gefunden nach Wartezeit'     : '❌ #root not found after timeout',
+    connLost:           DE ? '❌ Verbindung verloren'                     : '❌ Connection lost',
+    undoing:            DE ? 'Rückgängig machen...'                      : 'Undoing...',
+    undoDone:           DE ? '✓ Rückgängig'                              : '✓ Undone',
+    redoing:            DE ? 'Wiederherstellen...'                       : 'Redoing...',
+    redoDone:           DE ? '✓ Wiederhergestellt'                       : '✓ Redone',
+    saving:             DE ? 'Speichere...'                              : 'Saving...',
+    saved:              DE ? '✓ Gespeichert'                             : '✓ Saved',
+    savingN:            DE ? 'Speichere {n} Elemente...'                 : 'Saving {n} elements...',
+    savedN:             DE ? '✓ {n} Elemente gespeichert'               : '✓ {n} elements saved',
+    scaleSaved:         DE ? '✓ Skalierung gespeichert: {s}%'           : '✓ Scale saved: {s}%',
+    scaleSaving:        DE ? t('scaleSaving')                   : 'Saving scale...',
+    gridLabel:          DE ? 'Grid: {v}'                                 : 'Grid: {v}',
+    gridOff:            DE ? 'Aus'                                       : 'Off',
+    filterResult:       DE ? '🔍 {m}/{t} Elemente (Filter: "{q}")'      : '🔍 {m}/{t} elements (filter: "{q}")',
+    allElements:        DE ? '{m}/{t} Elemente'                          : '{m}/{t} elements',
+    resizeActive:       DE ? '✓ Resize aktiv — auf Element klicken'     : '✓ Resize active — click an element',
+    resizeOff:          DE ? 'Resize deaktiviert'                        : 'Resize disabled',
+    resizeHint:         DE ? '🔲 Resize-Box: an Eck-Handles ziehen'     : '🔲 Resize box: drag corner handles',
+    bufferCleared:      DE ? 'Buffer geleert'                            : 'Buffer cleared',
+    pasting:            DE ? 'Füge ein...'                               : 'Pasting...',
+    pasted:             DE ? '✓ "{n}" eingefügt'                        : '✓ "{n}" pasted',
+    noPicEls:           DE ? '❌ Kein picture-elements in diesem Tab'    : '❌ No picture-elements in this tab',
+    formatCopied:       DE ? 'Format von [{n}] kopiert — Alt+Klick auf Ziel' : 'Format from [{n}] copied — Alt+click target',
+    formatPasting:      DE ? 'Übertrage Format → [{i}] {n}...'          : 'Applying format → [{i}] {n}...',
+    formatPasted:       DE ? '✓ Format übertragen auf [{i}] {n}'        : '✓ Format applied to [{i}] {n}',
+    defaultMsg:         DE ? '✓ {v} — {c} Elemente  |  Dblclick=YAML  Alt=Format' : '✓ {v} — {c} elements  |  Dblclick=YAML  Alt=Format',
+    selected:           DE ? '✓ [{i}] markiert ({c} aktiv)'             : '✓ [{i}] selected ({c} active)',
+    deselected:         DE ? '❌ [{i}] demarkiert ({c} aktiv)'          : '❌ [{i}] deselected ({c} active)',
+    allDeselected:      DE ? 'Alle demarkiert'                           : 'All deselected',
+    arrowMove:          DE ? '↦ {t}% / {l}%  (Pfeiltaste, {s}%)'       : '↦ {t}% / {l}%  (arrow key, {s}%)',
+    dragPos:            DE ? '[{i}] {n}  top:{t}%  left:{l}%'           : '[{i}] {n}  top:{t}%  left:{l}%',
+    deleted:            DE ? '🗑 [{i}] {n} gelöscht'                    : '🗑 [{i}] {n} deleted',
+    duplicated:         DE ? '✓ [{i}] {n} dupliziert'                   : '✓ [{i}] {n} duplicated',
+    // Toolbar tooltips
+    ttDrag:             DE ? 'Drag zum Verschieben'                      : 'Drag to move',
+    ttUndo:             DE ? 'Ctrl+Z — Rückgängig'                      : 'Ctrl+Z — Undo',
+    ttRedo:             DE ? 'Ctrl+Y — Wiederherstellen'                 : 'Ctrl+Y — Redo',
+    ttResize:           DE ? 'Resize-Modus: Kreuz anklicken → Handles ziehen' : 'Resize mode: click crosshair → drag handles',
+    ttSnap:             DE ? 'Klick: Off → 1% → 3% → 5% → Off'         : 'Click: Off → 1% → 3% → 5% → Off',
+    ttResizeClose:      DE ? '✕ Resize'                                  : '✕ Resize',
+    // YAML popup
+    yamlReadonly:       DE ? 'YAML · read-only'                          : 'YAML · read-only',
+    jsonEditable:       DE ? 'JSON · editierbar'                         : 'JSON · editable',
+    copyYaml:           DE ? 'Copy YAML'                                 : 'Copy YAML',
+    copyJson:           DE ? 'Copy JSON'                                 : 'Copy JSON',
+    copied:             DE ? '✓ Kopiert!'                                : '✓ Copied!',
+    copyElement:        DE ? '📋 Element kopieren'                       : '📋 Copy element',
+    inBuffer:           DE ? '✓ Im Buffer!'                              : '✓ In buffer!',
+    bufferInfo:         DE ? '📋 "{n}" kopiert — Tab wechseln und einfügen' : '📋 "{n}" copied — switch tab to paste',
+    duplicate:          DE ? '⧉ Duplizieren'                            : '⧉ Duplicate',
+    duplicating:        DE ? 'Dupliziert...'                             : 'Duplicating...',
+    duplicateDone:      DE ? '✓ Dupliziert!'                            : '✓ Duplicated!',
+    edit:               DE ? 'Bearbeiten'                                : 'Edit',
+    save:               DE ? 'Speichern'                                 : 'Save',
+    savingBtn:          DE ? 'Speichert...'                              : 'Saving...',
+    deleteBtn:          DE ? '🗑 Löschen'                                : '🗑 Delete',
+    confirmDelete:      DE ? 'Wirklich löschen?'                         : 'Really delete?',
+    confirmYes:         DE ? '✓ Ja, löschen'                            : '✓ Yes, delete',
+    confirmNo:          DE ? 'Abbrechen'                                 : 'Cancel',
+    deleting:           DE ? 'Lösche...'                                 : 'Deleting...',
+    close:              DE ? 'Schließen'                                 : 'Close',
+    // Paste button
+    pasteBtn:           DE ? '📋 "{n}" einfügen'                        : '📋 Paste "{n}"',
+    pasteBtnTitle:      DE ? 'Element in dieses Tab einfügen'            : 'Paste element into this tab',
+    clearBuffer:        DE ? 'Buffer leeren'                             : 'Clear buffer',
+  };
+
+  function t(key, vars) {
+    var s = T[key] !== undefined ? T[key] : key;
+    if (vars) Object.keys(vars).forEach(function (k) { s = s.split('{'+k+'}').join(vars[k]); });
+    return s;
+  }
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -315,7 +397,7 @@
 
     var dragHandle = document.createElement('div');
     dragHandle.style.cssText = 'width:8px;height:8px;background:rgba(255,255,255,0.6);border-radius:50%;cursor:grab;flex-shrink:0;';
-    dragHandle.title = 'Drag zum Verschieben';
+    dragHandle.title = t('ttDrag');
     bar.appendChild(dragHandle);
 
     // Position-Tracking: Bar relativ zum Viewport halten (default: bottom-right, 20px Abstand)
@@ -409,7 +491,7 @@
       state.barUndoBtn = document.createElement('button');
       state.barUndoBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 10px;border-radius:4px;font:bold 16px monospace;cursor:pointer;margin-right:2px;transition:all 0.2s;line-height:1;';
       state.barUndoBtn.textContent = '↶';
-      state.barUndoBtn.title = 'Ctrl+Z — Rückgängig';
+      state.barUndoBtn.title = t('ttUndo');
       state.barUndoBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barUndoBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barUndoBtn.addEventListener('click', function (e) { e.preventDefault(); performUndo(currentWsPath, function () { initEditor(); }); });
@@ -418,7 +500,7 @@
       state.barRedoBtn = document.createElement('button');
       state.barRedoBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 10px;border-radius:4px;font:bold 16px monospace;cursor:pointer;margin-right:8px;transition:all 0.2s;line-height:1;';
       state.barRedoBtn.textContent = '↷';
-      state.barRedoBtn.title = 'Ctrl+Y — Wiederherstellen';
+      state.barRedoBtn.title = t('ttRedo');
       state.barRedoBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barRedoBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barRedoBtn.addEventListener('click', function (e) { e.preventDefault(); performRedo(currentWsPath, function () { initEditor(); }); });
@@ -431,7 +513,7 @@
       state.barResizeBtn = document.createElement('button');
       state.barResizeBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
       state.barResizeBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:middle"><polyline points="1,5 1,1 5,1" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="8,1 12,1 12,5" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="12,8 12,12 8,12" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="5,12 1,12 1,8" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/></svg>';
-      state.barResizeBtn.title = 'Resize-Modus: Klick → Kreuz anklicken → Handles ziehen';
+      state.barResizeBtn.title = t('ttResize');
       state.barResizeBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barResizeBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barResizeBtn.addEventListener('click', toggleResizeMode);
@@ -439,7 +521,7 @@
 
       state.barSnapBtn = document.createElement('button');
       state.barSnapBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
-      state.barSnapBtn.title = 'Klick: Off → 1% → 3% → 5% → Off';
+      state.barSnapBtn.title = t('ttSnap');
       state.barSnapBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barSnapBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barSnapBtn.addEventListener('click', toggleSnapGrid);
@@ -453,7 +535,7 @@
     state.barRedoBtn.disabled = redoStack.length === 0;
     state.barRedoBtn.style.opacity = redoStack.length === 0 ? '0.4' : '1';
 
-    var snapLbl = snapGrid === 'off' ? 'OFF' : snapGrid + '%';
+    var snapLbl = snapGrid === 'off' ? t('gridOff').toUpperCase() : snapGrid + '%';
     state.barSnapBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="vertical-align:middle;margin-right:3px"><line x1="4" y1="0" x2="4" y2="12" stroke="white" stroke-width="1"/><line x1="8" y1="0" x2="8" y2="12" stroke="white" stroke-width="1"/><line x1="0" y1="4" x2="12" y2="4" stroke="white" stroke-width="1"/><line x1="0" y1="8" x2="12" y2="8" stroke="white" stroke-width="1"/></svg>' + snapLbl;
 
     var txt = m;
@@ -475,15 +557,15 @@
     if (undoStack.length === 0) return;
     var st = undoStack.pop();
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren'); undoStack.push(st); return; }
-    setBar('Rückgängig machen...');
+    if (!liveConn) { setBar(t('connLost')); undoStack.push(st); return; }
+    setBar(t('undoing'));
     // Aktuelle Config holen → für Redo speichern; dann revert auf alten Snapshot
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (currentCfg) {
         redoStack.push({ cfg: JSON.parse(JSON.stringify(currentCfg)) });
         return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: st.cfg });
       })
-      .then(function () { setBar('✓ Rückgängig (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
+      .then(function () { setBar(t('undoDone') + ' (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
       .catch(function (err) { undoStack.push(st); setBar('❌ ' + (err.message || 'Fehler')); });
   }
 
@@ -491,8 +573,8 @@
     if (redoStack.length === 0) return;
     var st = redoStack.pop();
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren'); redoStack.push(st); return; }
-    setBar('Wiederherstellen...');
+    if (!liveConn) { setBar(t('connLost')); redoStack.push(st); return; }
+    setBar(t('redoing'));
     // Aktuelle Config in undoStack zurückschieben, damit man wieder undo machen kann
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (currentCfg) {
@@ -500,7 +582,7 @@
         if (undoStack.length > MAX_HISTORY) undoStack.shift();
         return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: st.cfg });
       })
-      .then(function () { setBar('✓ Wiederhergestellt (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
+      .then(function () { setBar(t('redoDone') + ' (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
       .catch(function (err) { redoStack.push(st); setBar('❌ ' + (err.message || 'Fehler')); });
   }
 
@@ -514,7 +596,7 @@
     var idx = SNAP_OPTIONS.indexOf(snapGrid);
     snapGrid = SNAP_OPTIONS[(idx + 1) % SNAP_OPTIONS.length];
     localStorage.setItem('ha_drag_snap_grid', snapGrid);
-    setBar('Grid: ' + (snapGrid === 'off' ? 'Aus' : snapGrid + '%'));
+    setBar(t('gridLabel', {v: snapGrid === 'off' ? t('gridOff') : snapGrid + '%'}));
   }
 
   function filterHandles(query) {
@@ -526,8 +608,7 @@
       item.h.style.pointerEvents = match ? 'all' : 'none';
       if (match) matches++;
     });
-    var txt = matches + '/' + allHandles.length + ' Elemente';
-    if (query) txt = '🔍 ' + txt + ' (Filter: "' + query + '")';
+    var txt = query ? t('filterResult', {m: matches, t: allHandles.length, q: query}) : t('allElements', {m: matches, t: allHandles.length});
     setBar(txt);
   }
 
@@ -535,7 +616,7 @@
     resizeMode = !resizeMode;
     localStorage.setItem('ha_drag_resize_mode', String(resizeMode));
     if (!resizeMode) hideResizeBox();
-    setBar(resizeMode ? '✓ Resize aktiv — auf Element klicken' : 'Resize deaktiviert');
+    setBar(resizeMode ? t('resizeActive') : t('resizeOff'));
   }
 
   // ── Resize-Box ─────────────────────────────────────────────────────────────
@@ -634,8 +715,8 @@
     // Schließen-Button
     var closeBtn = document.createElement('div');
     closeBtn.style.cssText = 'position:absolute;top:-26px;right:-2px;background:#000;color:#fff;font:bold 11px monospace;padding:3px 8px;border-radius:4px;cursor:pointer;pointer-events:all;border:1px solid #FFD700;';
-    closeBtn.textContent = '✕ Resize';
-    closeBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); hideResizeBox(); setBar('Resize-Box geschlossen'); });
+    closeBtn.textContent = t('ttResizeClose');
+    closeBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); hideResizeBox(); setBar(t('resizeOff')); });
     box.appendChild(closeBtn);
 
     // Größen-Anzeige
@@ -718,8 +799,8 @@
       resizeActive = null;
       // In Config speichern
       var liveConn = getConn();
-      if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
-      setBar('Speichere Skalierung...');
+      if (!liveConn) { setBar(t('connLost')); return; }
+      setBar(t('scaleSaving'));
       liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
         .then(function (freshCfg) {
           var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
@@ -730,7 +811,7 @@
           s.transform = setScaleInTransform(s.transform, scale);
           return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
         })
-        .then(function () { setBar('✓ Skalierung gespeichert: ' + (scale * 100).toFixed(0) + '%'); })
+        .then(function () { setBar(t('scaleSaved', {s: (scale * 100).toFixed(0)})); })
         .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
     }
     document.addEventListener('mousemove', onMove, true);
@@ -742,7 +823,7 @@
     window.addEventListener('resize', placeBox);
     window.addEventListener('scroll', placeBox, true);
 
-    setBar('🔲 Resize-Box: an Eck-Handles ziehen');
+    setBar(t('resizeHint'));
   }
 
   // ── Element-Buffer Paste-Button ────────────────────────────────────────────
@@ -755,18 +836,18 @@
     var btn = document.createElement('div');
     // position:absolute auf documentElement — Safari-fix (kein position:fixed in transform-Containern)
     btn.style.cssText = 'position:absolute;z-index:999999;background:rgba(0,0,0,0.7);color:#ccc;font:bold 12px monospace;padding:6px 18px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.6);';
-    btn.textContent = '📋 "' + elementBuffer._name + '" einfügen';
-    btn.title = 'Element in dieses Tab einfügen';
+    btn.textContent = t('pasteBtn', {n: elementBuffer._name});
+    btn.title = t('pasteBtnTitle');
     btn.addEventListener('click', function () { pasteElement(); });
 
     var cancelBtn = document.createElement('div');
     cancelBtn.style.cssText = 'position:absolute;z-index:999999;background:#555;color:#ccc;font:bold 13px monospace;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.6);';
     cancelBtn.textContent = '✕';
-    cancelBtn.title = 'Buffer leeren';
+    cancelBtn.title = t('clearBuffer');
     cancelBtn.addEventListener('click', function () {
       elementBuffer = null;
       updatePasteBtn();
-      setBar('Buffer geleert');
+      setBar(t('bufferCleared'));
     });
 
     document.documentElement.appendChild(btn);
@@ -795,15 +876,15 @@
   function pasteElement() {
     if (!elementBuffer) return;
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
-    setBar('Füge ein...');
+    if (!liveConn) { setBar(t('connLost')); return; }
+    setBar(t('pasting'));
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: currentWsPath, force: true })
       .then(function (freshCfg) {
         var loc = getCurrentLoc();
         var vIdx = getViewIdx(freshCfg, loc.view);
         var view = freshCfg.views[vIdx];
         var picInfo = getPicElsCard(view);
-        if (!picInfo) { setBar('❌ Kein picture-elements in diesem Tab'); return Promise.reject(new Error('no pic-els')); }
+        if (!picInfo) { setBar(t('noPicEls')); return Promise.reject(new Error('no pic-els')); }
         var card = getCardByPath(freshCfg, vIdx, picInfo.path);
         var newEl = JSON.parse(JSON.stringify(elementBuffer));
         delete newEl._name;
@@ -814,7 +895,7 @@
         var name = elementBuffer._name;
         elementBuffer = null;
         updatePasteBtn();
-        setBar('✓ "' + name + '" eingefügt');
+        setBar(t('pasted', {n: name}));
         setTimeout(initEditor, 600);
       })
       .catch(function (err) {
@@ -846,7 +927,7 @@
 
     var modeLbl = document.createElement('div');
     modeLbl.style.cssText = 'color:#666;font:10px monospace;';
-    modeLbl.textContent = 'YAML · read-only';
+    modeLbl.textContent = t('yamlReadonly');
 
     header.appendChild(title);
     header.appendChild(modeLbl);
@@ -870,8 +951,8 @@
       editMode = toEdit;
       yamlPre.style.display = toEdit ? 'none' : 'block';
       jsonArea.style.display = toEdit ? 'block' : 'none';
-      modeLbl.textContent = toEdit ? 'JSON · editierbar' : 'YAML · read-only';
-      editBtn.textContent = toEdit ? 'YAML' : 'Bearbeiten';
+      modeLbl.textContent = toEdit ? t('jsonEditable') : t('yamlReadonly');
+      editBtn.textContent = toEdit ? 'YAML' : t('edit');
       saveBtn.style.display = toEdit ? 'inline-block' : 'none';
       errMsg.style.display = 'none';
       if (toEdit) jsonArea.focus();
@@ -882,34 +963,34 @@
 
     var copyBtn = document.createElement('button');
     copyBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    copyBtn.textContent = 'Copy YAML';
+    copyBtn.textContent = t('copyYaml');
     copyBtn.addEventListener('click', function () {
       var txt = editMode ? jsonArea.value : yaml;
       navigator.clipboard.writeText(txt).then(function () {
-        copyBtn.textContent = '✓ Kopiert!';
-        setTimeout(function () { copyBtn.textContent = editMode ? 'Copy JSON' : 'Copy YAML'; }, 2000);
+        copyBtn.textContent = t('copied');
+        setTimeout(function () { copyBtn.textContent = editMode ? t('copyJson') : t('copyYaml'); }, 2000);
       });
     });
 
     var copyElBtn = document.createElement('button');
     copyElBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    copyElBtn.textContent = '📋 Element kopieren';
+    copyElBtn.textContent = t('copyElement');
     copyElBtn.addEventListener('click', function () {
       elementBuffer = JSON.parse(JSON.stringify(elCfg));
       elementBuffer._name = name.replace(/^\[.*?\]\s*/, '');
       updatePasteBtn();
-      copyElBtn.textContent = '✓ Im Buffer!';
-      setBar('📋 "' + elementBuffer._name + '" kopiert — Tab wechseln und einfügen');
-      setTimeout(function () { copyElBtn.textContent = '📋 Element kopieren'; overlay.remove(); }, 1200);
+      copyElBtn.textContent = t('inBuffer');
+      setBar(t('bufferInfo', {n: elementBuffer._name}));
+      setTimeout(function () { copyElBtn.textContent = t('copyElement'); overlay.remove(); }, 1200);
     });
 
     var dupBtn = document.createElement('button');
     dupBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    dupBtn.textContent = '⧉ Duplizieren';
+    dupBtn.textContent = t('duplicate');
     dupBtn.addEventListener('click', function () {
       var liveConn = getConn();
-      if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; return; }
-      dupBtn.textContent = 'Dupliziert...'; dupBtn.disabled = true;
+      if (!liveConn) { errMsg.textContent = t('connLost'); errMsg.style.display = 'block'; return; }
+      dupBtn.textContent = t('duplicating'); dupBtn.disabled = true;
       liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
         .then(function (freshCfg) {
           var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
@@ -923,12 +1004,12 @@
           return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
         })
         .then(function () {
-          setBar('✓ [' + elIdx + '] ' + name + ' dupliziert');
-          dupBtn.textContent = '✓ Dupliziert!';
+          setBar(t('duplicated', {i: elIdx, n: name}));
+          dupBtn.textContent = t('duplicateDone');
           setTimeout(function () { closePopup(); setTimeout(initEditor, 300); }, 800);
         })
         .catch(function (err) {
-          dupBtn.textContent = '⧉ Duplizieren'; dupBtn.disabled = false;
+          dupBtn.textContent = t('duplicate'); dupBtn.disabled = false;
           errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
           errMsg.style.display = 'block';
         });
@@ -936,12 +1017,12 @@
 
     var editBtn = document.createElement('button');
     editBtn.style.cssText = 'background:#555;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    editBtn.textContent = 'Bearbeiten';
+    editBtn.textContent = t('edit');
     editBtn.addEventListener('click', function () { switchMode(!editMode); });
 
     var saveBtn = document.createElement('button');
     saveBtn.style.cssText = 'display:none;background:#FF5733;color:white;border:none;padding:7px 18px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    saveBtn.textContent = 'Speichern';
+    saveBtn.textContent = t('save');
     saveBtn.addEventListener('click', function () {
       errMsg.style.display = 'none';
       var edited;
@@ -957,20 +1038,20 @@
       Object.keys(edited).forEach(function (k) { el[k] = edited[k]; });
       var liveConn = getConn();
       if (!liveConn) {
-        errMsg.textContent = '❌ Verbindung verloren';
+        errMsg.textContent = t('connLost');
         errMsg.style.display = 'block';
         return;
       }
-      saveBtn.textContent = 'Speichert...';
+      saveBtn.textContent = t('savingBtn');
       saveBtn.disabled = true;
       liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: cfg })
         .then(function () {
-          saveBtn.textContent = '✓ Gespeichert';
+          saveBtn.textContent = t('saved');
           setBar('✓ [' + elIdx + '] ' + name + ' gespeichert');
           setTimeout(function () { overlay.remove(); }, 1200);
         })
         .catch(function (err) {
-          saveBtn.textContent = 'Speichern';
+          saveBtn.textContent = t('save');
           saveBtn.disabled = false;
           errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
           errMsg.style.display = 'block';
@@ -979,7 +1060,7 @@
 
     var deleteBtn = document.createElement('button');
     deleteBtn.style.cssText = 'background:#7a1a1a;color:#ffaaaa;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;margin-right:auto;';
-    deleteBtn.textContent = '🗑 Löschen';
+    deleteBtn.textContent = t('deleteBtn');
     deleteBtn.addEventListener('click', function () {
       // Bestätigungs-UI einblenden
       deleteBtn.style.display = 'none';
@@ -987,18 +1068,18 @@
       confirmRow.style.cssText = 'display:flex;gap:6px;align-items:center;margin-right:auto;';
       var confirmTxt = document.createElement('span');
       confirmTxt.style.cssText = 'color:#ffaaaa;font:11px monospace;';
-      confirmTxt.textContent = 'Wirklich löschen?';
+      confirmTxt.textContent = t('confirmDelete');
       var yesBtn = document.createElement('button');
       yesBtn.style.cssText = 'background:#cc2200;color:white;border:none;padding:5px 12px;border-radius:4px;font:bold 11px monospace;cursor:pointer;';
-      yesBtn.textContent = '✓ Ja, löschen';
+      yesBtn.textContent = t('confirmYes');
       var noBtn = document.createElement('button');
       noBtn.style.cssText = 'background:#444;color:#ccc;border:none;padding:5px 10px;border-radius:4px;font:11px monospace;cursor:pointer;';
-      noBtn.textContent = 'Abbrechen';
+      noBtn.textContent = t('confirmNo');
       noBtn.addEventListener('click', function () { confirmRow.remove(); deleteBtn.style.display = ''; });
       yesBtn.addEventListener('click', function () {
         var liveConn = getConn();
-        if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; confirmRow.remove(); deleteBtn.style.display = ''; return; }
-        yesBtn.textContent = 'Lösche...'; yesBtn.disabled = true; noBtn.disabled = true;
+        if (!liveConn) { errMsg.textContent = t('connLost'); errMsg.style.display = 'block'; confirmRow.remove(); deleteBtn.style.display = ''; return; }
+        yesBtn.textContent = t('deleting'); yesBtn.disabled = true; noBtn.disabled = true;
         liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
           .then(function (freshCfg) {
             var card = getCardByPath(freshCfg, viewIdx, cardPath);
@@ -1006,12 +1087,12 @@
             return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
           })
           .then(function () {
-            setBar('🗑 [' + elIdx + '] ' + name + ' gelöscht');
+            setBar(t('deleted', {i: elIdx, n: name}));
             closePopup();
             setTimeout(initEditor, 600);
           })
           .catch(function (err) {
-            yesBtn.textContent = '✓ Ja, löschen'; yesBtn.disabled = false; noBtn.disabled = false;
+            yesBtn.textContent = t('confirmYes'); yesBtn.disabled = false; noBtn.disabled = false;
             errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
             errMsg.style.display = 'block';
           });
@@ -1028,7 +1109,7 @@
 
     var closeBtn = document.createElement('button');
     closeBtn.style.cssText = 'background:#333;color:#ccc;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    closeBtn.textContent = 'Schließen';
+    closeBtn.textContent = t('close');
     closeBtn.addEventListener('click', closePopup);
 
     overlay.addEventListener('click', function (e) { if (e.target === overlay) closePopup(); });
@@ -1058,7 +1139,7 @@
         formatBuffer[k] = JSON.parse(JSON.stringify(elCfg[k]));
       }
     });
-    setBar('Format von [' + name + '] kopiert — Alt+Klick auf Ziel');
+    setBar(t('formatCopied', {n: name}));
   }
 
   function pasteFormat(cfg, viewIdx, cardPath, elIdx, name, wsPath) {
@@ -1074,10 +1155,10 @@
     formatBuffer = null;
 
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren — Editor neu starten'); return; }
-    setBar('Übertrage Format → [' + elIdx + '] ' + name + '...');
+    if (!liveConn) { setBar(t('connLost')); return; }
+    setBar(t('formatPasting', {i: elIdx, n: name}));
     liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: cfg })
-      .then(function () { setBar('✓ Format übertragen auf [' + elIdx + '] ' + name); })
+      .then(function () { setBar(t('formatPasted', {i: elIdx, n: name})); })
       .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
   }
 
@@ -1139,7 +1220,7 @@
     var myGen = generation;
     state._currentGen = myGen;
     var conn = getConn();
-    if (!conn) { setBar('❌ HA-Verbindung nicht gefunden'); return; }
+    if (!conn) { setBar(t('noConnection')); return; }
 
     var loc = getCurrentLoc();
     var dashPath = loc.dash;
@@ -1151,21 +1232,21 @@
     var HA_INTERNAL = ['config', 'developer-tools', 'logbook', 'history', 'profile',
                        'map', 'energy', 'todo', 'calendar', 'shopping-list', 'media-browser'];
     if (HA_INTERNAL.indexOf(dashPath) !== -1) {
-      setBar('✓ Bereit — auf einem Dashboard mit picture-elements navigieren');
+      setBar(t('ready'));
       return;
     }
 
-    setBar('Lade...');
+    setBar(t('loading'));
 
     conn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (cfg) {
         var viewIdx = getViewIdx(cfg, viewPath);
         var view = cfg.views[viewIdx];
-        if (!view) { setBar('❌ View nicht gefunden'); return; }
+        if (!view) { setBar(t('noView')); return; }
 
         var picInfo = getPicElsCard(view);
         if (!picInfo) {
-          setBar('✓ Bereit — auf einem Dashboard mit picture-elements navigieren');
+          setBar(t('ready'));
           return;
         }
 
@@ -1176,7 +1257,7 @@
             setTimeout(function () { tryBuild(attempts - 1); }, 300);
             return;
           }
-          if (!rect) { setBar('❌ #root nicht gefunden nach Wartezeit'); return; }
+          if (!rect) { setBar(t('noRoot')); return; }
           if (state.layer) return;  // schon gebaut
           buildHandles(cfg, viewIdx, picInfo, wsPath);
         }
@@ -1186,7 +1267,7 @@
         var msg = err && (err.message || err.code || JSON.stringify(err));
         // "not_found" / "unknown_dashboard" → kein Lovelace auf dieser Seite, kein Fehler
         if (msg && (msg.indexOf('not_found') !== -1 || msg.indexOf('unknown') !== -1 || msg.indexOf('404') !== -1)) {
-          setBar('✓ Bereit — auf einem Dashboard mit picture-elements navigieren');
+          setBar(t('ready'));
         } else {
           setBar('❌ ' + msg);
         }
@@ -1246,7 +1327,7 @@
       h.addEventListener('dblclick', function (e) {
         e.preventDefault(); e.stopPropagation();
         var liveConn = getConn();
-        if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
+        if (!liveConn) { setBar(t('connLost')); return; }
         setBar('Lade [' + idx + '] ' + name + '...');
         liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
           .then(function (freshCfg) {
@@ -1265,11 +1346,11 @@
           if (selectedElements[idx]) {
             delete selectedElements[idx];
             h._dot.style.background = '#FF5733';
-            setBar('❌ [' + idx + '] demarkiert (' + Object.keys(selectedElements).length + ' aktiv)');
+            setBar(t('deselected', {i: idx, c: Object.keys(selectedElements).length}));
           } else {
             selectedElements[idx] = { t: tPct, l: lPct, h: h };
             h._dot.style.background = '#FFD700';
-            setBar('✓ [' + idx + '] markiert (' + (Object.keys(selectedElements).length) + ' aktiv)');
+            setBar(t('selected', {i: idx, c: Object.keys(selectedElements).length}));
           }
           return;
         }
@@ -1281,7 +1362,7 @@
           } else {
             // Frische Config für Format-Paste
             var liveConnFmt = getConn();
-            if (!liveConnFmt) { setBar('❌ Verbindung verloren'); return; }
+            if (!liveConnFmt) { setBar(t('connLost')); return; }
             liveConnFmt.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
               .then(function (freshCfg) { pasteFormat(freshCfg, viewIdx, cardPath, idx, name, wsPath); })
               .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
@@ -1292,7 +1373,7 @@
         // Resize-Modus → öffne Resize-Box statt Drag
         if (resizeMode) {
           var rRoot = getCachedRoot();
-          if (!rRoot) { setBar('❌ Kein picture-elements Root gefunden'); return; }
+          if (!rRoot) { setBar(t('noPicEls')); return; }
           var rDom = findDomElByPos(rRoot, tPct, lPct);
           if (!rDom) { setBar('❌ DOM-Element nicht gefunden (Tab-Wechsel? Neu laden)'); return; }
           showResizeBox(rDom, idx, picInfo, viewIdx, cardPath, wsPath, cfg);
@@ -1317,7 +1398,7 @@
                 saveElPos(fc, viewIdx, cardPath, idx, nt, nl);
                 return lc.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: fc });
               })
-              .then(function () { setBar('✓ [' + idx + '] ' + name + '  top:' + nt + '%  left:' + nl + '%'); })
+              .then(function () { setBar(t('dragPos', {i: idx, n: name, t: nt, l: nl})); })
               .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
           }
         });
@@ -1376,7 +1457,7 @@
           },
           save: function (nt, nl) {
             var liveConn = getConn();
-            if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
+            if (!liveConn) { setBar(t('connLost')); return; }
             // Closure-capture: globalActive ist hier bereits null (gesetzt im mouseup-Handler)
             var bulkStates = bulkInitStates;
             var bulkSnapshot = {};
@@ -1384,7 +1465,7 @@
               if (selectedElements[selIdx]) bulkSnapshot[selIdx] = { t: selectedElements[selIdx].t, l: selectedElements[selIdx].l };
             });
             var count = 1 + Object.keys(bulkStates).length;
-            setBar('Speichere ' + count + ' Elemente...');
+            setBar(t('savingN', {n: count}));
             // Snapshot der aktuellen Config VOR der Änderung — für Undo
             liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
               .then(function (freshCfg) {
@@ -1397,7 +1478,7 @@
                 });
                 return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
               })
-              .then(function () { setBar('✓ ' + count + ' Elemente gespeichert'); })
+              .then(function () { setBar(t('savedN', {n: count})); })
               .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
           }
         };
@@ -1405,7 +1486,7 @@
     });
 
     var view = cfg.views[viewIdx];
-    state.defaultBarMsg = '✓ ' + (view.title || viewIdx) + ' — ' + count + ' Elemente  |  Dblclick=YAML  Alt=Format';
+    state.defaultBarMsg = t('defaultMsg', {v: view.title || viewIdx, c: count});
     setBar(state.defaultBarMsg);
     updatePasteBtn();
   }
@@ -1427,7 +1508,7 @@
     nt = safePct(snapValue(nt), nt);
     globalActive.move(nt, nl);
     if (state._resizeBoxReposition) state._resizeBoxReposition();
-    setBar('[' + globalActive.idx + '] ' + globalActive.name + '  top:' + nt + '%  left:' + nl + '%');
+    setBar(t('dragPos', {i: globalActive.idx, n: globalActive.name, t: nt, l: nl}));
   }, true);
 
   document.addEventListener('mouseup', function (e) {
@@ -1462,7 +1543,7 @@
           if (selectedElements[idx].h) selectedElements[idx].h._dot.style.background = '#FF5733';
         });
         selectedElements = {};
-        setBar('Alle demarkiert');
+        setBar(t('allDeselected'));
       }
       setLastArrowTarget(null);  // stellt defaultBarMsg wieder her
       return;
@@ -1478,7 +1559,7 @@
       var nt = safePct(+(pos.t + dir[1] * step).toFixed(2), pos.t);
       var nl = safePct(+(pos.l + dir[0] * step).toFixed(2), pos.l);
       lastArrowTarget.applyMove(nt, nl);
-      setBar('↦ ' + nt + '% / ' + nl + '%  (Pfeiltaste, ' + step + '%)');
+      setBar(t('arrowMove', {t: nt, l: nl, s: step}));
       // Debounce save: 600ms nach letzter Taste — globaler Timer verhindert Race bei schnellem Klick
       if (arrowSaveTimer) clearTimeout(arrowSaveTimer);
       var cap = lastArrowTarget;
