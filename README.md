@@ -14,6 +14,18 @@ Positioniere Elemente direkt auf deinem Grundriss — ohne Code zu schreiben.
 
 ---
 
+## Screenshots
+
+![Editor mit Fadenkreuzen auf dem Grundriss](https://raw.githubusercontent.com/Presley2/ha-element-positioner/main/docs/screenshot_editor.png)
+
+*Fadenkreuze auf allen picture-elements — einfach ziehen um zu positionieren*
+
+![Toolbar](https://raw.githubusercontent.com/Presley2/ha-element-positioner/main/docs/screenshot_toolbar.png)
+
+*Statusbar mit Suche, Undo/Redo, Snap-Grid und Resize-Modus*
+
+---
+
 ## Features
 
 | Feature | Beschreibung |
