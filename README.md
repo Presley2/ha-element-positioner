@@ -126,6 +126,12 @@ Alle Shortcuts und Funktionen sind direkt im Sidebar-Panel dokumentiert.
 
 ---
 
+## Hinweis
+
+Ich hab dieses Tool für mich selbst entwickelt — zusammen mit [Claude Code](https://claude.ai/code) und zugeschnitten auf mein eigenes Setup, meine installierten Integrationen und meine Dashboards. Es funktioniert bei mir zuverlässig, aber ich kann nicht garantieren, dass es in jeder Umgebung läuft. Keine offizielle HA-Integration, kein Support-Versprechen — einfach ein Projekt das mir den Alltag erleichtert und vielleicht auch dir hilft. 🙂
+
+---
+
 ## Lizenz
 
 MIT License — siehe [LICENSE](LICENSE)
