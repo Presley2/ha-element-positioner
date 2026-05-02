@@ -6,6 +6,98 @@ class HaDragEditorPanel extends HTMLElement {
     this._enabled = localStorage.getItem('ha_drag_editor') === 'true';
   }
 
+  _lang() {
+    const lang = (this._hass && this._hass.language) || document.documentElement.lang || navigator.language || 'en';
+    return String(lang).toLowerCase().startsWith('de') ? 'de' : 'en';
+  }
+
+  _t(key) {
+    const dict = {
+      de: {
+        subtitle: 'Drag & Drop Editor für picture-elements',
+        editor: 'Editor',
+        active: 'Aktiv',
+        inactive: 'Inaktiv',
+        infoOn: '🟠 <b>Aktiv</b> — Tab wechseln, Fadenkreuze erscheinen auf allen Elementen. Änderungen werden sofort gespeichert.',
+        infoOff: '⚪ Toggle aktivieren, dann zum gewünschten Dashboard-Tab wechseln.',
+        move: 'Verschieben',
+        drag: 'Ziehen',
+        dragDesc: 'Element verschieben — Position sofort in HA gespeichert',
+        arrows: 'Klick → Pfeiltasten',
+        arrowsDesc: 'Element erst anklicken (cyan Ring), dann mit <b>↑ ↓ ← →</b> feinpositionieren. Schrittweite = aktives Snap-Grid (oder 0,5 %)',
+        shift: 'Shift + Klick',
+        shiftDesc: 'Element zur Mehrfachauswahl hinzufügen (goldener Punkt). Alle markierten Elemente bewegen sich gemeinsam beim Ziehen',
+        escDesc: 'Mehrfachauswahl aufheben &amp; Pfeiltasten-Fokus entfernen',
+        popup: 'YAML / JSON Popup',
+        dblclick: 'Doppelklick',
+        dblclickDesc: 'Öffnet YAML-Ansicht des Elements',
+        edit: 'Bearbeiten',
+        editDesc: 'Schaltet in JSON-Bearbeitungsmodus — direkt im Textfeld ändern, dann <b>Speichern</b>',
+        copyYamlDesc: 'YAML in die Zwischenablage kopieren',
+        copyElement: '📋 Element kopieren',
+        copyElementDesc: 'Element in Buffer legen — Tab wechseln, orangen <b>Einfügen</b>-Button klicken. Am Ende der Liste eingefügt, dann per Drag positionieren',
+        delete: '🗑 Löschen',
+        deleteDesc: 'Element entfernen — 2× klicken zur Bestätigung',
+        painter: 'Format-Painter',
+        source: 'Alt + Klick (Quelle)',
+        sourceDesc: 'Design (Farbe, Größe, Style) von diesem Element kopieren — <b>🎨</b> erscheint in der Leiste',
+        target: 'Alt + Klick (Ziel)',
+        targetDesc: 'Kopierten Style auf dieses Element übertragen — Entity &amp; Position bleiben erhalten',
+        bar: 'Leiste (unten im Dashboard)',
+        undoDesc: '<b>Rückgängig / Wiederholen</b> — bis zu 20 Schritte. Auch: <b>Ctrl+Z</b> / <b>Ctrl+Y</b> (Mac: ⌘)',
+        grid: '⊞ Grid-Symbol',
+        gridDesc: '<b>Snap-Grid</b> umschalten: OFF → 1 % → 3 % → 5 % → OFF. Bei aktivem Grid rastet Drag &amp; Pfeiltasten auf das Raster',
+        resize: 'Resize-Symbol',
+        resizeDesc: '<b>Resize-Modus</b>: aktivieren → auf Kreuz klicken → goldene Boundary-Box erscheint → Ecken/Kanten ziehen zum Skalieren. Speichert <code>transform: scale()</code>',
+        search: 'Suche',
+        searchDesc: 'Elemente nach Name filtern — nicht gefundene werden ausgeblendet',
+        hint: '<b>Status-Leiste:</b> ✓ grün = OK &nbsp;|&nbsp; ❌ rot = Fehler &nbsp;|&nbsp; 🎨 = Format-Buffer aktiv &nbsp;|&nbsp; 📋 = Element-Buffer aktiv<br><br><b>Nicht sichtbar?</b> Hard Refresh: <code>Ctrl+Shift+R</code><br><b>Entfernen:</b> HA → Dashboards → Ressourcen → <code>drag_editor.js</code> löschen'
+      },
+      en: {
+        subtitle: 'Drag & Drop editor for picture-elements',
+        editor: 'Editor',
+        active: 'Active',
+        inactive: 'Inactive',
+        infoOn: '🟠 <b>Active</b> — switch to a dashboard tab; crosshairs appear on all elements. Changes are saved immediately.',
+        infoOff: '⚪ Enable the toggle, then switch to the dashboard tab you want to edit.',
+        move: 'Move',
+        drag: 'Drag',
+        dragDesc: 'Move an element — position is saved to Home Assistant immediately',
+        arrows: 'Click → arrow keys',
+        arrowsDesc: 'Click an element first (cyan ring), then fine-position it with <b>↑ ↓ ← →</b>. Step size = active snap grid or 0.5 %',
+        shift: 'Shift + click',
+        shiftDesc: 'Add element to multi-selection (gold dot). All selected elements move together while dragging',
+        escDesc: 'Clear multi-selection and arrow-key focus',
+        popup: 'YAML / JSON popup',
+        dblclick: 'Double-click',
+        dblclickDesc: 'Opens YAML view for the element',
+        edit: 'Edit',
+        editDesc: 'Switches to JSON edit mode — edit directly in the text field, then <b>Save</b>',
+        copyYamlDesc: 'Copy YAML to clipboard',
+        copyElement: '📋 Copy element',
+        copyElementDesc: 'Put element into the buffer — switch tab, click the orange <b>Paste</b> button. It is inserted at the end, then positioned by drag',
+        delete: '🗑 Delete',
+        deleteDesc: 'Remove element — click twice to confirm',
+        painter: 'Format painter',
+        source: 'Alt + click (source)',
+        sourceDesc: 'Copy design (color, size, style) from this element — <b>🎨</b> appears in the bar',
+        target: 'Alt + click (target)',
+        targetDesc: 'Apply copied style to this element — entity &amp; position are preserved',
+        bar: 'Bar (bottom of dashboard)',
+        undoDesc: '<b>Undo / redo</b> — up to 20 steps. Also: <b>Ctrl+Z</b> / <b>Ctrl+Y</b> (Mac: ⌘)',
+        grid: '⊞ Grid icon',
+        gridDesc: '<b>Snap grid</b> toggle: OFF → 1 % → 3 % → 5 % → OFF. When active, drag &amp; arrow keys snap to the grid',
+        resize: 'Resize icon',
+        resizeDesc: '<b>Resize mode</b>: enable → click crosshair → gold boundary box appears → drag corners/edges to scale. Saves <code>transform: scale()</code>',
+        search: 'Search',
+        searchDesc: 'Filter elements by name — non-matching elements are dimmed',
+        hint: '<b>Status bar:</b> ✓ green = OK &nbsp;|&nbsp; ❌ red = error &nbsp;|&nbsp; 🎨 = format buffer active &nbsp;|&nbsp; 📋 = element buffer active<br><br><b>Not visible?</b> Hard refresh: <code>Ctrl+Shift+R</code><br><b>Remove:</b> HA → Dashboards → Resources → delete <code>drag_editor.js</code>'
+      }
+    };
+    const lang = this._lang();
+    return (dict[lang] && dict[lang][key]) || dict.en[key] || key;
+  }
+
   set hass(hass) {
     this._hass = hass;
     if (!this._rendered) { this._rendered = true; this._render(); }
@@ -23,6 +115,7 @@ class HaDragEditorPanel extends HTMLElement {
 
   _render() {
     var on = this._enabled;
+    const tr = (key) => this._t(key);
     this.shadowRoot.innerHTML = `
       <style>
         :host { display:block; padding:20px 14px; }
@@ -113,15 +206,15 @@ class HaDragEditorPanel extends HTMLElement {
           </svg>
           Element Positioner
         </h2>
-        <div class="subtitle">Drag &amp; Drop Editor für picture-elements</div>
+        <div class="subtitle">${tr('subtitle')}</div>
 
         <div class="row">
           <div>
-            <div class="label">Editor</div>
+            <div class="label">${tr('editor')}</div>
             <div class="sub">
               <span class="status-badge">
                 <span class="dot"></span>
-                ${on ? 'Aktiv' : 'Inaktiv'}
+                ${on ? tr('active') : tr('inactive')}
               </span>
             </div>
           </div>
@@ -132,96 +225,91 @@ class HaDragEditorPanel extends HTMLElement {
         </div>
 
         <div class="info">
-          ${on
-            ? '🟠 <b>Aktiv</b> — Tab wechseln, Fadenkreuze erscheinen auf allen Elementen. Änderungen werden sofort gespeichert.'
-            : '⚪ Toggle aktivieren, dann zum gewünschten Dashboard-Tab wechseln.'
-          }
+          ${on ? tr('infoOn') : tr('infoOff')}
         </div>
 
         <!-- VERSCHIEBEN -->
-        <div class="section-title">Verschieben</div>
+        <div class="section-title">${tr('move')}</div>
         <div class="cmd-list">
           <div class="cmd">
-            <span class="key">Ziehen</span>
-            <span>Element verschieben — Position sofort in HA gespeichert</span>
+            <span class="key">${tr('drag')}</span>
+            <span>${tr('dragDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">Klick → Pfeiltasten</span>
-            <span>Element erst anklicken (cyan Ring), dann mit <b>↑ ↓ ← →</b> feinpositionieren. Schrittweite = aktives Snap-Grid (oder 0,5 %)</span>
+            <span class="key">${tr('arrows')}</span>
+            <span>${tr('arrowsDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">Shift + Klick</span>
-            <span>Element zur Mehrfach­auswahl hinzufügen (goldener Punkt). Alle markierten Elemente bewegen sich gemeinsam beim Ziehen</span>
+            <span class="key">${tr('shift')}</span>
+            <span>${tr('shiftDesc')}</span>
           </div>
           <div class="cmd">
             <span class="key">Esc</span>
-            <span>Mehrfachauswahl aufheben &amp; Pfeiltasten-Fokus entfernen</span>
+            <span>${tr('escDesc')}</span>
           </div>
         </div>
 
         <!-- YAML / JSON POPUP -->
-        <div class="section-title">YAML / JSON Popup</div>
+        <div class="section-title">${tr('popup')}</div>
         <div class="cmd-list">
           <div class="cmd">
-            <span class="key">Doppelklick</span>
-            <span>Öffnet YAML-Ansicht des Elements</span>
+            <span class="key">${tr('dblclick')}</span>
+            <span>${tr('dblclickDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">Bearbeiten</span>
-            <span>Schaltet in JSON-Bearbeitungsmodus — direkt im Textfeld ändern, dann <b>Speichern</b></span>
+            <span class="key">${tr('edit')}</span>
+            <span>${tr('editDesc')}</span>
           </div>
           <div class="cmd">
             <span class="key">Copy YAML</span>
-            <span>YAML in die Zwischenablage kopieren</span>
+            <span>${tr('copyYamlDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key accent">📋 Element kopieren</span>
-            <span>Element in Buffer legen — Tab wechseln, orangen <b>Einfügen</b>-Button klicken. Am Ende der Liste eingefügt, dann per Drag positionieren</span>
+            <span class="key accent">${tr('copyElement')}</span>
+            <span>${tr('copyElementDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key del">🗑 Löschen</span>
-            <span>Element entfernen — 2× klicken zur Bestätigung</span>
+            <span class="key del">${tr('delete')}</span>
+            <span>${tr('deleteDesc')}</span>
           </div>
         </div>
 
         <!-- FORMAT PAINTER -->
-        <div class="section-title">Format-Painter</div>
+        <div class="section-title">${tr('painter')}</div>
         <div class="cmd-list">
           <div class="cmd">
-            <span class="key">Alt + Klick (Quelle)</span>
-            <span>Design (Farbe, Größe, Style) von diesem Element kopieren — <b>🎨</b> erscheint in der Leiste</span>
+            <span class="key">${tr('source')}</span>
+            <span>${tr('sourceDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">Alt + Klick (Ziel)</span>
-            <span>Kopierten Style auf dieses Element übertragen — Entity &amp; Position bleiben erhalten</span>
+            <span class="key">${tr('target')}</span>
+            <span>${tr('targetDesc')}</span>
           </div>
         </div>
 
         <!-- LEISTEN-BUTTONS -->
-        <div class="section-title">Leiste (unten im Dashboard)</div>
+        <div class="section-title">${tr('bar')}</div>
         <div class="cmd-list">
           <div class="cmd">
             <span class="key">↶ / ↷</span>
-            <span><b>Rückgängig / Wiederholen</b> — bis zu 20 Schritte. Auch: <b>Ctrl+Z</b> / <b>Ctrl+Y</b> (Mac: ⌘)</span>
+            <span>${tr('undoDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">⊞ Grid-Symbol</span>
-            <span><b>Snap-Grid</b> umschalten: OFF → 1 % → 3 % → 5 % → OFF. Bei aktivem Grid rastet Drag &amp; Pfeiltasten auf das Raster</span>
+            <span class="key">${tr('grid')}</span>
+            <span>${tr('gridDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">Resize-Symbol</span>
-            <span><b>Resize-Modus</b>: aktivieren → auf Kreuz klicken → goldene Boundary-Box erscheint → Ecken/Kanten ziehen zum Skalieren. Speichert <code>transform: scale()</code></span>
+            <span class="key">${tr('resize')}</span>
+            <span>${tr('resizeDesc')}</span>
           </div>
           <div class="cmd">
-            <span class="key">Suche</span>
-            <span>Elemente nach Name filtern — nicht gefundene werden ausgeblendet</span>
+            <span class="key">${tr('search')}</span>
+            <span>${tr('searchDesc')}</span>
           </div>
         </div>
 
         <div class="hint">
-          <b>Status-Leiste:</b> ✓ grün = OK &nbsp;|&nbsp; ❌ rot = Fehler &nbsp;|&nbsp; 🎨 = Format-Buffer aktiv &nbsp;|&nbsp; 📋 = Element-Buffer aktiv<br><br>
-          <b>Nicht sichtbar?</b> Hard Refresh: <code>Ctrl+Shift+R</code><br>
-          <b>Entfernen:</b> HA → Dashboards → Ressourcen → <code>drag_editor.js</code> löschen
+          ${tr('hint')}
         </div>
       </div>
     `;

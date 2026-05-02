@@ -1,4 +1,4 @@
-// HA Drag Editor 0.29 — Safari/iPad fix: position:absolute auf documentElement für layer/crosshairs/resizeBox/pasteBtns (kein position:fixed in transform-Containern)
+// HA Drag Editor 0.29.2 — Safari/iPad fix: position:absolute on documentElement for layer/crosshairs/resizeBox/pasteBtns
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] 0.29 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29.2 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -14,6 +14,159 @@
   var elementBuffer = null;  // Tab-übergreifend, wird bei cleanup NICHT gelöscht
   var currentWsPath = null;
   var state = { enabled: false, layer: null, bar: null, pasteBtn: null };
+
+  var LANG = (function () {
+    try {
+      var ha = document.querySelector('home-assistant');
+      var hass = ha && (ha.__data && ha.__data.hass || ha.hass);
+      var lang = hass && hass.language || document.documentElement.lang || navigator.language || 'en';
+      return String(lang).toLowerCase().indexOf('de') === 0 ? 'de' : 'en';
+    } catch (e) {
+      return (navigator.language || 'en').toLowerCase().indexOf('de') === 0 ? 'de' : 'en';
+    }
+  })();
+
+  var I18N = {
+    de: {
+      dragToMove: 'Ziehen zum Verschieben',
+      undoTitle: 'Ctrl+Z — Undo',
+      redoTitle: 'Ctrl+Y — Redo',
+      resizeTitle: 'Resize-Modus: Klick → Kreuz anklicken → Handles ziehen',
+      snapTitle: 'Klick: Off → 1% → 3% → 5% → Off',
+      connectionLost: 'Verbindung verloren',
+      connectionLostRestart: 'Verbindung verloren — Editor neu starten',
+      undoDoing: 'Rückgängig machen...',
+      redoDoing: 'Wiederherstellen...',
+      undoDone: 'Rückgängig',
+      redoDone: 'Wiederhergestellt',
+      error: 'Fehler',
+      gridOff: 'Aus',
+      elements: 'Elemente',
+      filter: 'Filter',
+      resizeOn: '✓ Resize aktiv — auf Element klicken',
+      resizeOff: 'Resize deaktiviert',
+      noStyle: '❌ Element hat kein style-Objekt',
+      resizeClosed: 'Resize-Box geschlossen',
+      savingScale: 'Speichere Skalierung...',
+      noStyleShort: 'kein style',
+      scaleSaved: '✓ Skalierung gespeichert: ',
+      resizeBoxHint: '🔲 Resize-Box: an Eck-Handles ziehen',
+      insert: 'einfügen',
+      insertTitle: 'Element in dieses Tab einfügen',
+      clearBuffer: 'Buffer leeren',
+      bufferCleared: 'Buffer geleert',
+      inserting: 'Füge ein...',
+      noPictureElements: '❌ Kein picture-elements in diesem Tab',
+      inserted: 'eingefügt',
+      yamlReadOnly: 'YAML · read-only',
+      jsonEditable: 'JSON · editierbar',
+      edit: 'Bearbeiten',
+      copied: '✓ Kopiert!',
+      copyElement: '📋 Element kopieren',
+      inBuffer: '✓ Im Buffer!',
+      copiedSwitchPaste: 'kopiert — Tab wechseln und einfügen',
+      save: 'Speichern',
+      saving: 'Speichert...',
+      saved: '✓ Gespeichert',
+      jsonError: '❌ JSON-Fehler: ',
+      delete: '🗑 Löschen',
+      confirm: '⚠ Sicher?',
+      deleting: 'Lösche...',
+      deleted: 'gelöscht',
+      close: 'Schließen',
+      formatCopied: 'Format von [{name}] kopiert — Alt+Klick auf Ziel',
+      transferringFormat: 'Übertrage Format → ',
+      formatApplied: '✓ Format übertragen auf ',
+      haConnNotFound: '❌ HA-Verbindung nicht gefunden',
+      viewNotFound: '❌ View nicht gefunden',
+      rootNotFoundAfterWait: '❌ #root nicht gefunden nach Wartezeit',
+      loading: 'Lade...',
+      loadingItem: 'Lade ',
+      noPictureInView: 'kein picture-elements',
+      unmarked: 'demarkiert',
+      marked: 'markiert',
+      active: 'aktiv',
+      noRoot: '❌ Kein picture-elements Root gefunden',
+      domNotFound: '❌ DOM-Element nicht gefunden (Tab-Wechsel? Neu laden)',
+      saveNotConfirmed: '❌ Speichern nicht bestätigt für ',
+      saveError: '❌ Save-Fehler ',
+      defaultSuffix: 'Elemente  |  Dblclick=YAML  Alt=Format',
+      allUnmarked: 'Alle demarkiert',
+      arrowKey: 'Pfeiltaste'
+    },
+    en: {
+      dragToMove: 'Drag to move',
+      undoTitle: 'Ctrl+Z — Undo',
+      redoTitle: 'Ctrl+Y — Redo',
+      resizeTitle: 'Resize mode: click → select crosshair → drag handles',
+      snapTitle: 'Click: Off → 1% → 3% → 5% → Off',
+      connectionLost: 'Connection lost',
+      connectionLostRestart: 'Connection lost — restart editor',
+      undoDoing: 'Undoing...',
+      redoDoing: 'Redoing...',
+      undoDone: 'Undo',
+      redoDone: 'Redone',
+      error: 'Error',
+      gridOff: 'Off',
+      elements: 'elements',
+      filter: 'filter',
+      resizeOn: '✓ Resize active — click an element',
+      resizeOff: 'Resize disabled',
+      noStyle: '❌ Element has no style object',
+      resizeClosed: 'Resize box closed',
+      savingScale: 'Saving scale...',
+      noStyleShort: 'no style',
+      scaleSaved: '✓ Scale saved: ',
+      resizeBoxHint: '🔲 Resize box: drag corner handles',
+      insert: 'paste',
+      insertTitle: 'Paste element into this tab',
+      clearBuffer: 'Clear buffer',
+      bufferCleared: 'Buffer cleared',
+      inserting: 'Pasting...',
+      noPictureElements: '❌ No picture-elements in this tab',
+      inserted: 'pasted',
+      yamlReadOnly: 'YAML · read-only',
+      jsonEditable: 'JSON · editable',
+      edit: 'Edit',
+      copied: '✓ Copied!',
+      copyElement: '📋 Copy element',
+      inBuffer: '✓ In buffer!',
+      copiedSwitchPaste: 'copied — switch tab and paste',
+      save: 'Save',
+      saving: 'Saving...',
+      saved: '✓ Saved',
+      jsonError: '❌ JSON error: ',
+      delete: '🗑 Delete',
+      confirm: '⚠ Sure?',
+      deleting: 'Deleting...',
+      deleted: 'deleted',
+      close: 'Close',
+      formatCopied: 'Format copied from [{name}] — Alt+click target',
+      transferringFormat: 'Applying format → ',
+      formatApplied: '✓ Format applied to ',
+      haConnNotFound: '❌ HA connection not found',
+      viewNotFound: '❌ View not found',
+      rootNotFoundAfterWait: '❌ #root not found after waiting',
+      loading: 'Loading...',
+      loadingItem: 'Loading ',
+      noPictureInView: 'no picture-elements',
+      unmarked: 'unselected',
+      marked: 'selected',
+      active: 'active',
+      noRoot: '❌ No picture-elements root found',
+      domNotFound: '❌ DOM element not found (tab change? reload)',
+      saveNotConfirmed: '❌ Save not confirmed for ',
+      saveError: '❌ Save error ',
+      defaultSuffix: 'elements  |  Dblclick=YAML  Alt=Format',
+      allUnmarked: 'Selection cleared',
+      arrowKey: 'arrow key'
+    }
+  };
+  function t(key, vars) {
+    var text = (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key;
+    if (vars) Object.keys(vars).forEach(function (k) { text = text.replace('{' + k + '}', vars[k]); });
+    return text;
+  }
 
   // Undo/Redo System
   var undoStack = [];
@@ -367,7 +520,7 @@
 
     var dragHandle = document.createElement('div');
     dragHandle.style.cssText = 'width:8px;height:8px;background:rgba(255,255,255,0.6);border-radius:50%;cursor:grab;flex-shrink:0;';
-    dragHandle.title = 'Drag zum Verschieben';
+    dragHandle.title = t('dragToMove');
     bar.appendChild(dragHandle);
 
     // Position-Tracking: Bar relativ zum Viewport halten (default: bottom-right, 20px Abstand)
@@ -461,7 +614,7 @@
       state.barUndoBtn = document.createElement('button');
       state.barUndoBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 10px;border-radius:4px;font:bold 16px monospace;cursor:pointer;margin-right:2px;transition:all 0.2s;line-height:1;';
       state.barUndoBtn.textContent = '↶';
-      state.barUndoBtn.title = 'Ctrl+Z — Rückgängig';
+      state.barUndoBtn.title = t('undoTitle');
       state.barUndoBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barUndoBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barUndoBtn.addEventListener('click', function (e) { e.preventDefault(); performUndo(currentWsPath, function () { initEditor(); }); });
@@ -470,7 +623,7 @@
       state.barRedoBtn = document.createElement('button');
       state.barRedoBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 10px;border-radius:4px;font:bold 16px monospace;cursor:pointer;margin-right:8px;transition:all 0.2s;line-height:1;';
       state.barRedoBtn.textContent = '↷';
-      state.barRedoBtn.title = 'Ctrl+Y — Wiederherstellen';
+      state.barRedoBtn.title = t('redoTitle');
       state.barRedoBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barRedoBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barRedoBtn.addEventListener('click', function (e) { e.preventDefault(); performRedo(currentWsPath, function () { initEditor(); }); });
@@ -483,7 +636,7 @@
       state.barResizeBtn = document.createElement('button');
       state.barResizeBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
       state.barResizeBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:middle"><polyline points="1,5 1,1 5,1" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="8,1 12,1 12,5" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="12,8 12,12 8,12" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="5,12 1,12 1,8" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/></svg>';
-      state.barResizeBtn.title = 'Resize-Modus: Klick → Kreuz anklicken → Handles ziehen';
+      state.barResizeBtn.title = t('resizeTitle');
       state.barResizeBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barResizeBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barResizeBtn.addEventListener('click', toggleResizeMode);
@@ -491,7 +644,7 @@
 
       state.barSnapBtn = document.createElement('button');
       state.barSnapBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
-      state.barSnapBtn.title = 'Klick: Off → 1% → 3% → 5% → Off';
+      state.barSnapBtn.title = t('snapTitle');
       state.barSnapBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barSnapBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barSnapBtn.addEventListener('click', toggleSnapGrid);
@@ -527,24 +680,24 @@
     if (undoStack.length === 0) return;
     var st = undoStack.pop();
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren'); undoStack.push(st); return; }
-    setBar('Rückgängig machen...');
+    if (!liveConn) { setBar('❌ ' + t('connectionLost')); undoStack.push(st); return; }
+    setBar(t('undoDoing'));
     // Aktuelle Config holen → für Redo speichern; dann revert auf alten Snapshot
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (currentCfg) {
         redoStack.push({ cfg: JSON.parse(JSON.stringify(currentCfg)) });
         return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: st.cfg });
       })
-      .then(function () { setBar('✓ Rückgängig (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
-      .catch(function (err) { undoStack.push(st); setBar('❌ ' + (err.message || 'Fehler')); });
+      .then(function () { setBar('✓ ' + t('undoDone') + ' (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
+      .catch(function (err) { undoStack.push(st); setBar('❌ ' + (err.message || t('error'))); });
   }
 
   function performRedo(wsPath, onSuccess) {
     if (redoStack.length === 0) return;
     var st = redoStack.pop();
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren'); redoStack.push(st); return; }
-    setBar('Wiederherstellen...');
+    if (!liveConn) { setBar('❌ ' + t('connectionLost')); redoStack.push(st); return; }
+    setBar(t('redoDoing'));
     // Aktuelle Config in undoStack zurückschieben, damit man wieder undo machen kann
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (currentCfg) {
@@ -552,8 +705,8 @@
         if (undoStack.length > MAX_HISTORY) undoStack.shift();
         return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: st.cfg });
       })
-      .then(function () { setBar('✓ Wiederhergestellt (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
-      .catch(function (err) { redoStack.push(st); setBar('❌ ' + (err.message || 'Fehler')); });
+      .then(function () { setBar('✓ ' + t('redoDone') + ' (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
+      .catch(function (err) { redoStack.push(st); setBar('❌ ' + (err.message || t('error'))); });
   }
 
   function snapValue(val) {
@@ -566,7 +719,7 @@
     var idx = SNAP_OPTIONS.indexOf(snapGrid);
     snapGrid = SNAP_OPTIONS[(idx + 1) % SNAP_OPTIONS.length];
     localStorage.setItem('ha_drag_snap_grid', snapGrid);
-    setBar('Grid: ' + (snapGrid === 'off' ? 'Aus' : snapGrid + '%'));
+    setBar('Grid: ' + (snapGrid === 'off' ? t('gridOff') : snapGrid + '%'));
   }
 
   function filterHandles(query) {
@@ -578,8 +731,8 @@
       item.h.style.pointerEvents = match ? 'all' : 'none';
       if (match) matches++;
     });
-    var txt = matches + '/' + allHandles.length + ' Elemente';
-    if (query) txt = '🔍 ' + txt + ' (Filter: "' + query + '")';
+    var txt = matches + '/' + allHandles.length + ' ' + t('elements');
+    if (query) txt = '🔍 ' + txt + ' (' + t('filter') + ': "' + query + '")';
     setBar(txt);
   }
 
@@ -587,7 +740,7 @@
     resizeMode = !resizeMode;
     localStorage.setItem('ha_drag_resize_mode', String(resizeMode));
     if (!resizeMode) hideResizeBox();
-    setBar(resizeMode ? '✓ Resize aktiv — auf Element klicken' : 'Resize deaktiviert');
+    setBar(resizeMode ? t('resizeOn') : t('resizeOff'));
   }
 
   // ── Resize-Box ─────────────────────────────────────────────────────────────
@@ -622,7 +775,7 @@
     var root = getActiveRoot(); if (!root) return;
     var elCfg = picInfo.card.elements[elIdx];
     var styleObj = unwrapElStyle(elCfg);
-    if (!styleObj) { setBar('❌ Element hat kein style-Objekt'); return; }
+    if (!styleObj) { setBar(t('noStyle')); return; }
 
     var topPct = parseFloat(styleObj.top);
     var leftPct = parseFloat(styleObj.left);
@@ -680,7 +833,7 @@
     var closeBtn = document.createElement('div');
     closeBtn.style.cssText = 'position:absolute;top:-26px;right:-2px;background:#000;color:#fff;font:bold 11px monospace;padding:3px 8px;border-radius:4px;cursor:pointer;pointer-events:all;border:1px solid #FFD700;';
     closeBtn.textContent = '✕ Resize';
-    closeBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); hideResizeBox(); setBar('Resize-Box geschlossen'); });
+    closeBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); hideResizeBox(); setBar(t('resizeClosed')); });
     box.appendChild(closeBtn);
 
     // Größen-Anzeige
@@ -730,19 +883,19 @@
       resizeActive = null;
       // In Config speichern
       var liveConn = getConn();
-      if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
-      setBar('Speichere Skalierung...');
+      if (!liveConn) { setBar('❌ ' + t('connectionLost')); return; }
+      setBar(t('savingScale'));
       liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
         .then(function (freshCfg) {
           var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
           var freshEl = freshCard.elements[elIdx];
           var s = unwrapElStyle(freshEl);
-          if (!s) throw new Error('kein style');
+          if (!s) throw new Error(t('noStyleShort'));
           if (typeof scale !== 'number' || !isFinite(scale)) scale = 1;
           s.transform = setScaleInTransform(s.transform, scale);
           return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
         })
-        .then(function () { setBar('✓ Skalierung gespeichert: ' + (scale * 100).toFixed(0) + '%'); })
+        .then(function () { setBar(t('scaleSaved') + (scale * 100).toFixed(0) + '%'); })
         .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
     }
     document.addEventListener('mousemove', onMove, true);
@@ -753,7 +906,7 @@
     window.addEventListener('resize', placeBox);
     window.addEventListener('scroll', placeBox, true);
 
-    setBar('🔲 Resize-Box: an Eck-Handles ziehen');
+    setBar(t('resizeBoxHint'));
   }
 
   // ── Element-Buffer Paste-Button ────────────────────────────────────────────
@@ -766,18 +919,18 @@
     var btn = document.createElement('div');
     // position:absolute auf documentElement — Safari-fix (kein position:fixed in transform-Containern)
     btn.style.cssText = 'position:absolute;z-index:999999;background:rgba(0,0,0,0.7);color:#ccc;font:bold 12px monospace;padding:6px 18px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.6);';
-    btn.textContent = '📋 "' + elementBuffer._name + '" einfügen';
-    btn.title = 'Element in dieses Tab einfügen';
+    btn.textContent = '📋 "' + elementBuffer._name + '" ' + t('insert');
+    btn.title = t('insertTitle');
     btn.addEventListener('click', function () { pasteElement(); });
 
     var cancelBtn = document.createElement('div');
     cancelBtn.style.cssText = 'position:absolute;z-index:999999;background:#555;color:#ccc;font:bold 13px monospace;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.6);';
     cancelBtn.textContent = '✕';
-    cancelBtn.title = 'Buffer leeren';
+    cancelBtn.title = t('clearBuffer');
     cancelBtn.addEventListener('click', function () {
       elementBuffer = null;
       updatePasteBtn();
-      setBar('Buffer geleert');
+      setBar(t('bufferCleared'));
     });
 
     document.documentElement.appendChild(btn);
@@ -806,15 +959,15 @@
   function pasteElement() {
     if (!elementBuffer) return;
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
-    setBar('Füge ein...');
+    if (!liveConn) { setBar('❌ ' + t('connectionLost')); return; }
+    setBar(t('inserting'));
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: currentWsPath, force: true })
       .then(function (freshCfg) {
         var loc = getCurrentLoc();
         var vIdx = getViewIdx(freshCfg, loc.view);
         var view = freshCfg.views[vIdx];
         var picInfo = getPicElsCard(view);
-        if (!picInfo) { setBar('❌ Kein picture-elements in diesem Tab'); return Promise.reject(new Error('no pic-els')); }
+        if (!picInfo) { setBar(t('noPictureElements')); return Promise.reject(new Error('no pic-els')); }
         var card = getCardByPath(freshCfg, vIdx, picInfo.path);
         var newEl = JSON.parse(JSON.stringify(elementBuffer));
         delete newEl._name;
@@ -825,7 +978,7 @@
         var name = elementBuffer._name;
         elementBuffer = null;
         updatePasteBtn();
-        setBar('✓ "' + name + '" eingefügt');
+        setBar('✓ "' + name + '" ' + t('inserted'));
         setTimeout(initEditor, 600);
       })
       .catch(function (err) {
@@ -857,7 +1010,7 @@
 
     var modeLbl = document.createElement('div');
     modeLbl.style.cssText = 'color:#666;font:10px monospace;';
-    modeLbl.textContent = 'YAML · read-only';
+    modeLbl.textContent = t('yamlReadOnly');
 
     header.appendChild(title);
     header.appendChild(modeLbl);
@@ -881,8 +1034,8 @@
       editMode = toEdit;
       yamlPre.style.display = toEdit ? 'none' : 'block';
       jsonArea.style.display = toEdit ? 'block' : 'none';
-      modeLbl.textContent = toEdit ? 'JSON · editierbar' : 'YAML · read-only';
-      editBtn.textContent = toEdit ? 'YAML' : 'Bearbeiten';
+      modeLbl.textContent = toEdit ? t('jsonEditable') : t('yamlReadOnly');
+      editBtn.textContent = toEdit ? 'YAML' : t('edit');
       saveBtn.style.display = toEdit ? 'inline-block' : 'none';
       errMsg.style.display = 'none';
       if (toEdit) jsonArea.focus();
@@ -897,37 +1050,37 @@
     copyBtn.addEventListener('click', function () {
       var txt = editMode ? jsonArea.value : yaml;
       navigator.clipboard.writeText(txt).then(function () {
-        copyBtn.textContent = '✓ Kopiert!';
+        copyBtn.textContent = t('copied');
         setTimeout(function () { copyBtn.textContent = editMode ? 'Copy JSON' : 'Copy YAML'; }, 2000);
       });
     });
 
     var copyElBtn = document.createElement('button');
     copyElBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    copyElBtn.textContent = '📋 Element kopieren';
+    copyElBtn.textContent = t('copyElement');
     copyElBtn.addEventListener('click', function () {
       elementBuffer = JSON.parse(JSON.stringify(elCfg));
       elementBuffer._name = name.replace(/^\[.*?\]\s*/, '');
       updatePasteBtn();
-      copyElBtn.textContent = '✓ Im Buffer!';
-      setBar('📋 "' + elementBuffer._name + '" kopiert — Tab wechseln und einfügen');
-      setTimeout(function () { copyElBtn.textContent = '📋 Element kopieren'; overlay.remove(); }, 1200);
+      copyElBtn.textContent = t('inBuffer');
+      setBar('📋 "' + elementBuffer._name + '" ' + t('copiedSwitchPaste'));
+      setTimeout(function () { copyElBtn.textContent = t('copyElement'); overlay.remove(); }, 1200);
     });
 
     var editBtn = document.createElement('button');
     editBtn.style.cssText = 'background:#555;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    editBtn.textContent = 'Bearbeiten';
+    editBtn.textContent = t('edit');
     editBtn.addEventListener('click', function () { switchMode(!editMode); });
 
     var saveBtn = document.createElement('button');
     saveBtn.style.cssText = 'display:none;background:#FF5733;color:white;border:none;padding:7px 18px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    saveBtn.textContent = 'Speichern';
+    saveBtn.textContent = t('save');
     saveBtn.addEventListener('click', function () {
       errMsg.style.display = 'none';
       var edited;
       try { edited = JSON.parse(jsonArea.value); }
       catch (e) {
-        errMsg.textContent = '❌ JSON-Fehler: ' + e.message;
+        errMsg.textContent = t('jsonError') + e.message;
         errMsg.style.display = 'block';
         return;
       }
@@ -937,20 +1090,20 @@
       Object.keys(edited).forEach(function (k) { el[k] = edited[k]; });
       var liveConn = getConn();
       if (!liveConn) {
-        errMsg.textContent = '❌ Verbindung verloren';
+        errMsg.textContent = '❌ ' + t('connectionLost');
         errMsg.style.display = 'block';
         return;
       }
-      saveBtn.textContent = 'Speichert...';
+      saveBtn.textContent = t('saving');
       saveBtn.disabled = true;
       liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: cfg })
         .then(function () {
-          saveBtn.textContent = '✓ Gespeichert';
+          saveBtn.textContent = t('saved');
           setBar('✓ [' + elIdx + '] ' + name + ' gespeichert');
           setTimeout(function () { overlay.remove(); }, 1200);
         })
         .catch(function (err) {
-          saveBtn.textContent = 'Speichern';
+          saveBtn.textContent = t('save');
           saveBtn.disabled = false;
           errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
           errMsg.style.display = 'block';
@@ -959,17 +1112,17 @@
 
     var deleteBtn = document.createElement('button');
     deleteBtn.style.cssText = 'background:#7a1a1a;color:#ffaaaa;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;margin-right:auto;';
-    deleteBtn.textContent = '🗑 Löschen';
+    deleteBtn.textContent = t('delete');
     deleteBtn.addEventListener('click', function () {
       if (deleteBtn.dataset.confirm !== '1') {
-        deleteBtn.textContent = '⚠ Sicher?';
+        deleteBtn.textContent = t('confirm');
         deleteBtn.dataset.confirm = '1';
-        setTimeout(function () { if (deleteBtn.dataset.confirm === '1') { deleteBtn.textContent = '🗑 Löschen'; deleteBtn.dataset.confirm = '0'; } }, 3000);
+        setTimeout(function () { if (deleteBtn.dataset.confirm === '1') { deleteBtn.textContent = t('delete'); deleteBtn.dataset.confirm = '0'; } }, 3000);
         return;
       }
       var liveConn = getConn();
-      if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; return; }
-      deleteBtn.textContent = 'Lösche...';
+      if (!liveConn) { errMsg.textContent = '❌ ' + t('connectionLost'); errMsg.style.display = 'block'; return; }
+      deleteBtn.textContent = t('deleting');
       deleteBtn.disabled = true;
       liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
         .then(function (freshCfg) {
@@ -978,12 +1131,12 @@
           return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
         })
         .then(function () {
-          setBar('🗑 [' + elIdx + '] ' + name + ' gelöscht');
+          setBar('🗑 [' + elIdx + '] ' + name + ' ' + t('deleted'));
           overlay.remove();
           setTimeout(initEditor, 600);
         })
         .catch(function (err) {
-          deleteBtn.textContent = '🗑 Löschen';
+          deleteBtn.textContent = t('delete');
           deleteBtn.disabled = false;
           deleteBtn.dataset.confirm = '0';
           errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
@@ -993,7 +1146,7 @@
 
     var closeBtn = document.createElement('button');
     closeBtn.style.cssText = 'background:#333;color:#ccc;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    closeBtn.textContent = 'Schließen';
+    closeBtn.textContent = t('close');
     closeBtn.addEventListener('click', function () { overlay.remove(); });
 
     overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
@@ -1025,7 +1178,7 @@
         formatBuffer[k] = JSON.parse(JSON.stringify(elCfg[k]));
       }
     });
-    setBar('Format von [' + name + '] kopiert — Alt+Klick auf Ziel');
+    setBar(t('formatCopied', { name: name }));
   }
 
   function pasteFormat(cfg, viewIdx, cardPath, elIdx, name, wsPath) {
@@ -1041,10 +1194,10 @@
     formatBuffer = null;
 
     var liveConn = getConn();
-    if (!liveConn) { setBar('❌ Verbindung verloren — Editor neu starten'); return; }
-    setBar('Übertrage Format → [' + elIdx + '] ' + name + '...');
+    if (!liveConn) { setBar('❌ ' + t('connectionLostRestart')); return; }
+    setBar(t('transferringFormat') + '[' + elIdx + '] ' + name + '...');
     liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: cfg })
-      .then(function () { setBar('✓ Format übertragen auf [' + elIdx + '] ' + name); })
+      .then(function () { setBar(t('formatApplied') + '[' + elIdx + '] ' + name); })
       .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
   }
 
@@ -1114,7 +1267,7 @@
     var myGen = generation;
     state._currentGen = myGen;
     var conn = getConn();
-    if (!conn) { setBar('❌ HA-Verbindung nicht gefunden'); return; }
+    if (!conn) { setBar(t('haConnNotFound')); return; }
 
     var loc = getCurrentLoc();
     var dashPath = loc.dash;
@@ -1122,17 +1275,17 @@
     var wsPath = (dashPath === 'lovelace') ? null : dashPath;
     currentWsPath = wsPath;
 
-    setBar('Lade... wsPath=' + (wsPath === null ? 'null(lovelace)' : wsPath) + ' view=' + String(viewPath));
+    setBar(t('loading') + ' wsPath=' + (wsPath === null ? 'null(lovelace)' : wsPath) + ' view=' + String(viewPath));
 
     conn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (cfg) {
         var viewIdx = getViewIdx(cfg, viewPath);
         var view = cfg.views[viewIdx];
-        if (!view) { setBar('❌ View nicht gefunden'); return; }
+        if (!view) { setBar(t('viewNotFound')); return; }
 
         var picInfo = getPicElsCard(view);
         if (!picInfo) {
-          setBar('ℹ️ [' + viewIdx + '] "' + (view.title || '?') + '" — kein picture-elements');
+          setBar('ℹ️ [' + viewIdx + '] "' + (view.title || '?') + '" — ' + t('noPictureInView'));
           return;
         }
 
@@ -1143,7 +1296,7 @@
             setTimeout(function () { tryBuild(attempts - 1); }, 300);
             return;
           }
-          if (!rect) { setBar('❌ #root nicht gefunden nach Wartezeit'); return; }
+          if (!rect) { setBar(t('rootNotFoundAfterWait')); return; }
           if (state.layer) return;  // schon gebaut
           buildHandles(cfg, viewIdx, picInfo, wsPath);
         }
@@ -1217,9 +1370,10 @@
       // Doppelklick → frische Config holen → YAML-Popup
       h.addEventListener('dblclick', function (e) {
         e.preventDefault(); e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
         var liveConn = getConn();
-        if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
-        setBar('Lade [' + idx + '] ' + name + '...');
+        if (!liveConn) { setBar('❌ ' + t('connectionLost')); return; }
+        setBar(t('loadingItem') + '[' + idx + '] ' + name + '...');
         liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
           .then(function (freshCfg) {
             var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
@@ -1231,17 +1385,18 @@
 
       h.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
+        if (e.detail > 1) return;
 
         // Shift+Klick → Element markieren/demarkieren
         if (e.shiftKey) {
           if (selectedElements[idx]) {
             delete selectedElements[idx];
             h._dot.style.background = '#FF5733';
-            setBar('❌ [' + idx + '] demarkiert (' + Object.keys(selectedElements).length + ' aktiv)');
+            setBar('❌ [' + idx + '] ' + t('unmarked') + ' (' + Object.keys(selectedElements).length + ' ' + t('active') + ')');
           } else {
             selectedElements[idx] = { t: tPct, l: lPct, h: h };
             h._dot.style.background = '#FFD700';
-            setBar('✓ [' + idx + '] markiert (' + (Object.keys(selectedElements).length) + ' aktiv)');
+            setBar('✓ [' + idx + '] ' + t('marked') + ' (' + (Object.keys(selectedElements).length) + ' ' + t('active') + ')');
           }
           return;
         }
@@ -1253,7 +1408,7 @@
           } else {
             // Frische Config für Format-Paste
             var liveConnFmt = getConn();
-            if (!liveConnFmt) { setBar('❌ Verbindung verloren'); return; }
+            if (!liveConnFmt) { setBar('❌ ' + t('connectionLost')); return; }
             liveConnFmt.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
               .then(function (freshCfg) { pasteFormat(freshCfg, viewIdx, cardPath, idx, name, wsPath); })
               .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
@@ -1264,9 +1419,9 @@
         // Resize-Modus → öffne Resize-Box statt Drag
         if (resizeMode) {
           var rRoot = getActiveRoot();
-          if (!rRoot) { setBar('❌ Kein picture-elements Root gefunden'); return; }
+          if (!rRoot) { setBar(t('noRoot')); return; }
           var rDom = h._targetDom || findDomElByPos(rRoot, tPct, lPct);
-          if (!rDom) { setBar('❌ DOM-Element nicht gefunden (Tab-Wechsel? Neu laden)'); return; }
+          if (!rDom) { setBar(t('domNotFound')); return; }
           showResizeBox(rDom, idx, picInfo, viewIdx, cardPath, wsPath, cfg);
           return;
         }
@@ -1317,7 +1472,7 @@
 
         globalActive = {
           h: h, idx: idx, name: name, dom: activeDom,
-          sx: e.clientX, sy: e.clientY, st: tPct, sl: lPct,
+          sx: e.clientX, sy: e.clientY, st: tPct, sl: lPct, moved: false,
           bulkInitStates: bulkInitStates,
           move: function (t, l) {
             var active = this;
@@ -1353,7 +1508,7 @@
           },
           save: function (nt, nl) {
             var liveConn = getConn();
-            if (!liveConn) { setBar('❌ Verbindung verloren'); return Promise.resolve(false); }
+            if (!liveConn) { setBar('❌ ' + t('connectionLost')); return Promise.resolve(false); }
             // Closure-capture: globalActive ist hier bereits null (gesetzt im mouseup-Handler)
             var bulkStates = bulkInitStates;
             var bulkSnapshot = {};
@@ -1389,12 +1544,12 @@
                   setBar('✓ [' + idx + '] ' + name + '  top:' + nt.toFixed(1) + '%  left:' + nl.toFixed(1) + '%');
                   return true;
                 }
-                setBar('❌ Speichern nicht bestätigt für [' + idx + '] ' + name);
+                setBar(t('saveNotConfirmed') + '[' + idx + '] ' + name);
                 return false;
               })
               .catch(function (err) {
                 var msg = (err && (err.message || err.code || err.error)) ? (err.message || err.code || err.error) : JSON.stringify(err);
-                setBar('❌ Save-Fehler [' + idx + ']: ' + msg);
+                setBar(t('saveError') + '[' + idx + ']: ' + msg);
                 console.error('[HA-Drag-Editor] save:ERR', { wsPath: wsPath, idx: idx, err: err });
                 return false;
               });
@@ -1404,7 +1559,7 @@
     });
 
     var view = cfg.views[viewIdx];
-    state.defaultBarMsg = '✓ ' + (view.title || viewIdx) + ' — ' + count + ' Elemente  |  Dblclick=YAML  Alt=Format';
+    state.defaultBarMsg = '✓ ' + (view.title || viewIdx) + ' — ' + count + ' ' + t('defaultSuffix');
     setBar(state.defaultBarMsg);
     updatePasteBtn();
   }
@@ -1418,6 +1573,10 @@
 
   document.addEventListener('mousemove', function (e) {
     if (!globalActive) return;
+    var dx = e.clientX - globalActive.sx;
+    var dy = e.clientY - globalActive.sy;
+    if (!globalActive.moved && (dx * dx + dy * dy) < 16) return;
+    globalActive.moved = true;
     var r = getRect();
     if (!r || r.width <= 0 || r.height <= 0) return;
     var nl = safePct(+(globalActive.sl + (e.clientX - globalActive.sx) / r.width * 100).toFixed(1), globalActive.sl);
@@ -1436,17 +1595,29 @@
     d.h._dot.style.background = '#FF5733';
     var r = getRect();
     if (!r || r.width <= 0 || r.height <= 0) {
-      setBar('❌ Kein picture-elements Root gefunden');
+      setBar(t('noRoot'));
       return;
     }
     var nl = safePct(+(d.sl + (e.clientX - d.sx) / r.width * 100).toFixed(1), d.sl);
     var nt = safePct(+(d.st + (e.clientY - d.sy) / r.height * 100).toFixed(1), d.st);
     nl = safePct(snapValue(nl), nl);
     nt = safePct(snapValue(nt), nt);
+    if (!d.moved) {
+      setLastArrowTarget({
+        h: d.h,
+        getPos: function () { return { t: d.st, l: d.sl }; },
+        applyMove: function (nt2, nl2) { d.move(nt2, nl2); },
+        save: function (nt2, nl2) { return d.save(nt2, nl2); }
+      });
+      if (state.defaultBarMsg) setBar(state.defaultBarMsg);
+      return;
+    }
     d.move(nt, nl);
     d.save(nt, nl).then(function (ok) {
       if (ok) {
-        setTimeout(function () { if (state.enabled) initEditor(); }, 600);
+        setTimeout(function () {
+          if (state.enabled && !document.getElementById('ha-drag-yaml-popup')) initEditor();
+        }, 600);
       }
     });
   }, true);
@@ -1468,7 +1639,7 @@
           if (selectedElements[idx].h) selectedElements[idx].h._dot.style.background = '#FF5733';
         });
         selectedElements = {};
-        setBar('Alle demarkiert');
+        setBar(t('allUnmarked'));
       }
       setLastArrowTarget(null);  // stellt defaultBarMsg wieder her
       return;
@@ -1484,7 +1655,7 @@
       var nt = safePct(+(pos.t + dir[1] * step).toFixed(2), pos.t);
       var nl = safePct(+(pos.l + dir[0] * step).toFixed(2), pos.l);
       lastArrowTarget.applyMove(nt, nl);
-      setBar('↦ ' + nt + '% / ' + nl + '%  (Pfeiltaste, ' + step + '%)');
+      setBar('↦ ' + nt + '% / ' + nl + '%  (' + t('arrowKey') + ', ' + step + '%)');
       // Debounce save: 600ms nach letzter Taste — globaler Timer verhindert Race bei schnellem Klick
       if (arrowSaveTimer) clearTimeout(arrowSaveTimer);
       var cap = lastArrowTarget;

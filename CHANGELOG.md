@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.29.2] - 2026-05-02
+
+### Added
+- Frontend editor and sidebar panel now support German and English UI text based on Home Assistant or browser language
+
+### Fixed
+- Double-click YAML popup no longer closes immediately because the drag mouseup handler ignores non-drag clicks
+- Cache-friendly frontend version banner now shows `0.29.2`
+
 ## [0.29.1] - 2026-05-02
 
 ### Fixed
