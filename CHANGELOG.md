@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29.1] - 2026-05-02
+
+### Fixed
+- Debug overlay and temporary save tracing removed from production frontend
+- Frontend version banner updated from legacy `v24` to `0.29`
+- Lovelace resource storage fallback now writes `type: module`
+- GitHub release workflow now points to the frontend files in their actual repository path
+
 ## [0.29] - 2026-05-02
 
 ### Fixed

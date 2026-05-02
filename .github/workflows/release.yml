@@ -16,5 +16,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            drag_editor.js
-            drag_editor_panel.js
+            custom_components/element_positioner/frontend/drag_editor.js
+            custom_components/element_positioner/frontend/drag_editor_panel.js

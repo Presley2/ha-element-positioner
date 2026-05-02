@@ -78,7 +78,7 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
         data = await store.async_load() or {"items": []}
         items = data.setdefault("items", [])
         if not any(url in item.get("url", "") for item in items):
-            items.append({"url": url, "res_type": "module", "id": uuid.uuid4().hex})
+            items.append({"url": url, "type": "module", "id": uuid.uuid4().hex})
             await store.async_save(data)
             _LOGGER.info("Lovelace-Resource in Storage geschrieben: %s", url)
         else:

@@ -1,4 +1,4 @@
-// HA Drag Editor v24 — Safari/iPad fix: position:absolute auf documentElement für layer/crosshairs/resizeBox/pasteBtns (kein position:fixed in transform-Containern)
+// HA Drag Editor 0.29 — Safari/iPad fix: position:absolute auf documentElement für layer/crosshairs/resizeBox/pasteBtns (kein position:fixed in transform-Containern)
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] v24 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -515,22 +515,6 @@
 
   function setBar(m) {
     updateBar(m);
-  }
-
-  function showDebugBox(m) {
-    if (localStorage.getItem('ha_drag_debug') !== 'true') {
-      var existing = document.getElementById('ep-save-debug');
-      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
-      return;
-    }
-    var box = document.getElementById('ep-save-debug');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'ep-save-debug';
-      box.style.cssText = 'position:fixed;z-index:2147483647;left:12px;top:12px;max-width:calc(100vw - 24px);background:rgba(0,0,0,0.9);color:#fff;font:bold 12px/1.35 monospace;padding:10px 12px;border-radius:8px;border:2px solid #FF5733;box-shadow:0 4px 14px rgba(0,0,0,0.65);white-space:pre-wrap;pointer-events:none;';
-      document.documentElement.appendChild(box);
-    }
-    box.textContent = m + '\n' + new Date().toLocaleTimeString();
   }
 
   function pushUndoState(cfg, viewIdx, cardPath, elIdx, oldTop, oldLeft) {
@@ -1127,7 +1111,6 @@
 
   function initEditor() {
     cleanup();
-    showDebugBox('EP DEBUG LOADED\nwaiting for drag...');
     var myGen = generation;
     state._currentGen = myGen;
     var conn = getConn();
@@ -1248,8 +1231,6 @@
 
       h.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
-        var pathTxtDown = Array.isArray(cardPath) ? cardPath.join('.') : String(cardPath);
-        showDebugBox('MOUSEDOWN\nidx=' + idx + '\npath=' + pathTxtDown);
 
         // Shift+Klick → Element markieren/demarkieren
         if (e.shiftKey) {
@@ -1373,8 +1354,6 @@
           save: function (nt, nl) {
             var liveConn = getConn();
             if (!liveConn) { setBar('❌ Verbindung verloren'); return Promise.resolve(false); }
-            var pathTxtStart = Array.isArray(cardPath) ? cardPath.join('.') : String(cardPath);
-            showDebugBox('SAVE START\nidx=' + idx + '\npath=' + pathTxtStart + '\nwant=' + nt.toFixed(1) + '/' + nl.toFixed(1));
             // Closure-capture: globalActive ist hier bereits null (gesetzt im mouseup-Handler)
             var bulkStates = bulkInitStates;
             var bulkSnapshot = {};
@@ -1405,18 +1384,17 @@
               })
               .then(function (checkCfg) {
                 var p = readElPosFromCfg(checkCfg, viewIdx, cardPath, idx);
-                var msg = p ? (p.top.toFixed(1) + '/' + p.left.toFixed(1)) : 'missing';
-                var pathTxt = Array.isArray(cardPath) ? cardPath.join('.') : String(cardPath);
-                var dbg = 'SAVE\nidx=' + idx + '\npath=' + pathTxt + '\nwant=' + nt.toFixed(1) + '/' + nl.toFixed(1) + '\ngot=' + msg;
-                setBar(dbg.replace(/\n/g, '  '));
-                showDebugBox(dbg);
-                console.log('[HA-Drag-Editor] save:ok', { wsPath: wsPath, idx: idx, wanted: { top: nt, left: nl }, check: p });
-                return !!(p && p.top.toFixed(1) === nt.toFixed(1) && p.left.toFixed(1) === nl.toFixed(1));
+                var ok = !!(p && p.top.toFixed(1) === nt.toFixed(1) && p.left.toFixed(1) === nl.toFixed(1));
+                if (ok) {
+                  setBar('✓ [' + idx + '] ' + name + '  top:' + nt.toFixed(1) + '%  left:' + nl.toFixed(1) + '%');
+                  return true;
+                }
+                setBar('❌ Speichern nicht bestätigt für [' + idx + '] ' + name);
+                return false;
               })
               .catch(function (err) {
                 var msg = (err && (err.message || err.code || err.error)) ? (err.message || err.code || err.error) : JSON.stringify(err);
-                setBar('DBG save:ERR wsPath=' + String(wsPath) + ' idx=' + idx + ' err=' + msg);
-                showDebugBox('SAVE ERROR\nidx=' + idx + '\nerr=' + msg);
+                setBar('❌ Save-Fehler [' + idx + ']: ' + msg);
                 console.error('[HA-Drag-Editor] save:ERR', { wsPath: wsPath, idx: idx, err: err });
                 return false;
               });
@@ -1454,12 +1432,11 @@
   document.addEventListener('mouseup', function (e) {
     if (!globalActive) return;
     var d = globalActive; globalActive = null;
-    showDebugBox('MOUSEUP\nidx=' + d.idx + '\nname=' + d.name);
     d.h._dot.style.transform = 'translate(-50%,-50%) scale(1)';
     d.h._dot.style.background = '#FF5733';
     var r = getRect();
     if (!r || r.width <= 0 || r.height <= 0) {
-      showDebugBox('MOUSEUP ABORT\nidx=' + d.idx + '\nreason=no root rect');
+      setBar('❌ Kein picture-elements Root gefunden');
       return;
     }
     var nl = safePct(+(d.sl + (e.clientX - d.sx) / r.width * 100).toFixed(1), d.sl);
