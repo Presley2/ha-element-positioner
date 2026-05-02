@@ -28,11 +28,11 @@ class HaDragEditorPanel extends HTMLElement {
         shift: 'Shift + Klick',
         shiftDesc: 'Element zur Mehrfachauswahl hinzufügen (goldener Punkt). Alle markierten Elemente bewegen sich gemeinsam beim Ziehen',
         escDesc: 'Mehrfachauswahl aufheben &amp; Pfeiltasten-Fokus entfernen',
-        popup: 'YAML / JSON Popup',
+        popup: 'YAML Popup',
         dblclick: 'Doppelklick',
         dblclickDesc: 'Öffnet YAML-Ansicht des Elements',
         edit: 'Bearbeiten',
-        editDesc: 'Schaltet in JSON-Bearbeitungsmodus — direkt im Textfeld ändern, dann <b>Speichern</b>',
+        editDesc: 'YAML direkt im Textfeld ändern, dann <b>Speichern</b>',
         copyYamlDesc: 'YAML in die Zwischenablage kopieren',
         copyElement: '📋 Element kopieren',
         copyElementDesc: 'Element in Buffer legen — Tab wechseln, orangen <b>Einfügen</b>-Button klicken. Am Ende der Liste eingefügt, dann per Drag positionieren',
@@ -68,11 +68,11 @@ class HaDragEditorPanel extends HTMLElement {
         shift: 'Shift + click',
         shiftDesc: 'Add element to multi-selection (gold dot). All selected elements move together while dragging',
         escDesc: 'Clear multi-selection and arrow-key focus',
-        popup: 'YAML / JSON popup',
+        popup: 'YAML popup',
         dblclick: 'Double-click',
         dblclickDesc: 'Opens YAML view for the element',
         edit: 'Edit',
-        editDesc: 'Switches to JSON edit mode — edit directly in the text field, then <b>Save</b>',
+        editDesc: 'Edit YAML directly in the text field, then <b>Save</b>',
         copyYamlDesc: 'Copy YAML to clipboard',
         copyElement: '📋 Copy element',
         copyElementDesc: 'Put element into the buffer — switch tab, click the orange <b>Paste</b> button. It is inserted at the end, then positioned by drag',
@@ -249,7 +249,7 @@ class HaDragEditorPanel extends HTMLElement {
           </div>
         </div>
 
-        <!-- YAML / JSON POPUP -->
+        <!-- YAML POPUP -->
         <div class="section-title">${tr('popup')}</div>
         <div class="cmd-list">
           <div class="cmd">

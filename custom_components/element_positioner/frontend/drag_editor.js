@@ -1,4 +1,4 @@
-// HA Drag Editor 0.29.2 — Safari/iPad fix: position:absolute on documentElement for layer/crosshairs/resizeBox/pasteBtns
+// HA Drag Editor 0.29.3 — YAML editor, Safari/iPad absolute overlay positioning
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] 0.29.2 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29.3 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -59,7 +59,7 @@
       noPictureElements: '❌ Kein picture-elements in diesem Tab',
       inserted: 'eingefügt',
       yamlReadOnly: 'YAML · read-only',
-      jsonEditable: 'JSON · editierbar',
+      yamlEditable: 'YAML · editierbar',
       edit: 'Bearbeiten',
       copied: '✓ Kopiert!',
       copyElement: '📋 Element kopieren',
@@ -68,7 +68,7 @@
       save: 'Speichern',
       saving: 'Speichert...',
       saved: '✓ Gespeichert',
-      jsonError: '❌ JSON-Fehler: ',
+      yamlError: '❌ YAML-Fehler: ',
       delete: '🗑 Löschen',
       confirm: '⚠ Sicher?',
       deleting: 'Lösche...',
@@ -126,7 +126,7 @@
       noPictureElements: '❌ No picture-elements in this tab',
       inserted: 'pasted',
       yamlReadOnly: 'YAML · read-only',
-      jsonEditable: 'JSON · editable',
+      yamlEditable: 'YAML · editable',
       edit: 'Edit',
       copied: '✓ Copied!',
       copyElement: '📋 Copy element',
@@ -135,7 +135,7 @@
       save: 'Save',
       saving: 'Saving...',
       saved: '✓ Saved',
-      jsonError: '❌ JSON error: ',
+      yamlError: '❌ YAML error: ',
       delete: '🗑 Delete',
       confirm: '⚠ Sure?',
       deleting: 'Deleting...',
@@ -508,10 +508,119 @@
     }).join('\n');
   }
 
+  function parseYamlScalar(raw) {
+    var s = String(raw == null ? '' : raw).trim();
+    if (s === '' || s === "''") return '';
+    if (s === 'null') return null;
+    if (s === 'true') return true;
+    if (s === 'false') return false;
+    if (s === '[]') return [];
+    if (s === '{}') return {};
+    if ((s[0] === '"' && s[s.length - 1] === '"') || (s[0] === "'" && s[s.length - 1] === "'")) {
+      if (s[0] === '"') return JSON.parse(s);
+      return s.slice(1, -1).replace(/''/g, "'");
+    }
+    if (/^-?(?:0|[1-9]\d*)(?:\.\d+)?$/.test(s)) return Number(s);
+    return s;
+  }
+
+  function splitYamlKeyVal(text) {
+    var inS = false, inD = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (ch === "'" && !inD) inS = !inS;
+      else if (ch === '"' && !inS && text[i - 1] !== '\\') inD = !inD;
+      else if (ch === ':' && !inS && !inD && (i === text.length - 1 || /\s/.test(text[i + 1]))) {
+        return [text.slice(0, i).trim(), text.slice(i + 1).trim()];
+      }
+    }
+    return null;
+  }
+
+  function parseYaml(text) {
+    var rawLines = String(text || '').replace(/\t/g, '  ').split(/\r?\n/);
+    var lines = [];
+    rawLines.forEach(function (line) {
+      if (!line.trim() || line.trim().charAt(0) === '#') return;
+      var m = line.match(/^ */);
+      lines.push({ indent: m ? m[0].length : 0, text: line.trim() });
+    });
+    if (!lines.length) return {};
+
+    function parseBlock(pos, indent) {
+      if (pos >= lines.length) return { value: {}, pos: pos };
+      if (lines[pos].indent < indent) return { value: {}, pos: pos };
+      if (lines[pos].text.indexOf('- ') === 0 && lines[pos].indent === indent) return parseList(pos, indent);
+      return parseMap(pos, indent);
+    }
+
+    function parseList(pos, indent) {
+      var arr = [];
+      while (pos < lines.length && lines[pos].indent === indent && lines[pos].text.indexOf('- ') === 0) {
+        var rest = lines[pos].text.slice(2).trim();
+        pos++;
+        if (!rest) {
+          var nested = parseBlock(pos, indent + 2);
+          arr.push(nested.value);
+          pos = nested.pos;
+          continue;
+        }
+        var kv = splitYamlKeyVal(rest);
+        if (kv) {
+          var obj = {};
+          if (!kv[0]) throw new Error('missing key');
+          if (kv[1] === '') {
+            var nestedVal = parseBlock(pos, indent + 2);
+            obj[kv[0]] = nestedVal.value;
+            pos = nestedVal.pos;
+          } else {
+            obj[kv[0]] = parseYamlScalar(kv[1]);
+          }
+          while (pos < lines.length && lines[pos].indent >= indent + 2) {
+            if (lines[pos].indent === indent + 2 && lines[pos].text.indexOf('- ') !== 0) {
+              var more = parseMap(pos, indent + 2);
+              Object.keys(more.value).forEach(function (k) { obj[k] = more.value[k]; });
+              pos = more.pos;
+            } else {
+              break;
+            }
+          }
+          arr.push(obj);
+        } else {
+          arr.push(parseYamlScalar(rest));
+        }
+      }
+      return { value: arr, pos: pos };
+    }
+
+    function parseMap(pos, indent) {
+      var obj = {};
+      while (pos < lines.length && lines[pos].indent === indent && lines[pos].text.indexOf('- ') !== 0) {
+        var kv = splitYamlKeyVal(lines[pos].text);
+        if (!kv || !kv[0]) throw new Error('line ' + (pos + 1) + ': expected key: value');
+        pos++;
+        if (kv[1] === '') {
+          var nested = parseBlock(pos, indent + 2);
+          obj[kv[0]] = nested.value;
+          pos = nested.pos;
+        } else {
+          obj[kv[0]] = parseYamlScalar(kv[1]);
+        }
+      }
+      return { value: obj, pos: pos };
+    }
+
+    var parsed = parseBlock(0, lines[0].indent);
+    if (parsed.pos < lines.length) throw new Error('line ' + (parsed.pos + 1) + ': unexpected indentation');
+    return parsed.value;
+  }
+
   // ── Status-Bar ─────────────────────────────────────────────────────────────
 
   function ensureBar() {
     if (state.bar && document.documentElement.contains(state.bar)) return state.bar;
+    var oldBars = document.querySelectorAll('#ha-drag-editor-bar');
+    for (var obi = 0; obi < oldBars.length; obi++) oldBars[obi].remove();
     var bar = document.createElement('div');
     bar.id = 'ha-drag-editor-bar';
     // position:absolute + manuelles viewport-tracking → funktioniert auch in Safari
@@ -914,9 +1023,12 @@
   function updatePasteBtn() {
     if (state.pasteBtn) { state.pasteBtn.remove(); state.pasteBtn = null; }
     if (state.cancelBtn) { state.cancelBtn.remove(); state.cancelBtn = null; }
+    var oldPaste = document.querySelectorAll('#ha-drag-paste-btn, #ha-drag-paste-cancel');
+    for (var opi = 0; opi < oldPaste.length; opi++) oldPaste[opi].remove();
     if (!elementBuffer || !state.enabled) return;
 
     var btn = document.createElement('div');
+    btn.id = 'ha-drag-paste-btn';
     // position:absolute auf documentElement — Safari-fix (kein position:fixed in transform-Containern)
     btn.style.cssText = 'position:absolute;z-index:999999;background:rgba(0,0,0,0.7);color:#ccc;font:bold 12px monospace;padding:6px 18px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.6);';
     btn.textContent = '📋 "' + elementBuffer._name + '" ' + t('insert');
@@ -924,6 +1036,7 @@
     btn.addEventListener('click', function () { pasteElement(); });
 
     var cancelBtn = document.createElement('div');
+    cancelBtn.id = 'ha-drag-paste-cancel';
     cancelBtn.style.cssText = 'position:absolute;z-index:999999;background:#555;color:#ccc;font:bold 13px monospace;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.6);';
     cancelBtn.textContent = '✕';
     cancelBtn.title = t('clearBuffer');
@@ -946,11 +1059,17 @@
       var vh = window.innerHeight;
       var ph = btn.offsetHeight || 32;
       var pw = btn.offsetWidth  || 200;
-      var cy = sy + vh - ph - 46;
+      var bottomGap = 46;
+      var bar = state.bar && document.documentElement.contains(state.bar) ? state.bar : document.getElementById('ha-drag-editor-bar');
+      if (bar) {
+        var br = bar.getBoundingClientRect();
+        if (br.height > 0) bottomGap = Math.max(bottomGap, vh - br.top + 12);
+      }
+      var cy = sy + vh - ph - bottomGap;
       btn.style.left = (sx + vw / 2 - pw / 2) + 'px';
       btn.style.top  = cy + 'px';
       cancelBtn.style.left = (sx + vw / 2 + pw / 2 + 6) + 'px';
-      cancelBtn.style.top  = (sy + vh - 28 - 46) + 'px';
+      cancelBtn.style.top  = (sy + vh - 28 - bottomGap) + 'px';
     }
     requestAnimationFrame(repositionPasteBtns);
     state._pasteBtnReposition = repositionPasteBtns;
@@ -1010,36 +1129,18 @@
 
     var modeLbl = document.createElement('div');
     modeLbl.style.cssText = 'color:#666;font:10px monospace;';
-    modeLbl.textContent = t('yamlReadOnly');
+    modeLbl.textContent = t('yamlEditable');
 
     header.appendChild(title);
     header.appendChild(modeLbl);
 
-    // YAML readonly view
-    var yamlPre = document.createElement('pre');
-    yamlPre.style.cssText = 'color:#e0e0e0;font:11px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;';
-    yamlPre.textContent = yaml;
-
-    // JSON editable textarea (hidden by default)
-    var jsonArea = document.createElement('textarea');
-    jsonArea.value = JSON.stringify(elCfg, null, 2);
-    jsonArea.style.cssText = 'display:none;color:#e0e0e0;font:11px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;width:100%;box-sizing:border-box;border:1px solid #FF5733;resize:none;outline:none;';
-    jsonArea.spellcheck = false;
+    var yamlArea = document.createElement('textarea');
+    yamlArea.value = yaml;
+    yamlArea.style.cssText = 'color:#e0e0e0;font:11px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;width:100%;box-sizing:border-box;border:1px solid #FF5733;resize:none;outline:none;';
+    yamlArea.spellcheck = false;
 
     var errMsg = document.createElement('div');
     errMsg.style.cssText = 'color:#ff4444;font:11px monospace;display:none;';
-
-    var editMode = false;
-    function switchMode(toEdit) {
-      editMode = toEdit;
-      yamlPre.style.display = toEdit ? 'none' : 'block';
-      jsonArea.style.display = toEdit ? 'block' : 'none';
-      modeLbl.textContent = toEdit ? t('jsonEditable') : t('yamlReadOnly');
-      editBtn.textContent = toEdit ? 'YAML' : t('edit');
-      saveBtn.style.display = toEdit ? 'inline-block' : 'none';
-      errMsg.style.display = 'none';
-      if (toEdit) jsonArea.focus();
-    }
 
     var btns = document.createElement('div');
     btns.style.cssText = 'display:flex;gap:8px;justify-content:flex-end;align-items:center;';
@@ -1048,10 +1149,9 @@
     copyBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
     copyBtn.textContent = 'Copy YAML';
     copyBtn.addEventListener('click', function () {
-      var txt = editMode ? jsonArea.value : yaml;
-      navigator.clipboard.writeText(txt).then(function () {
+      navigator.clipboard.writeText(yamlArea.value).then(function () {
         copyBtn.textContent = t('copied');
-        setTimeout(function () { copyBtn.textContent = editMode ? 'Copy JSON' : 'Copy YAML'; }, 2000);
+        setTimeout(function () { copyBtn.textContent = 'Copy YAML'; }, 2000);
       });
     });
 
@@ -1067,20 +1167,15 @@
       setTimeout(function () { copyElBtn.textContent = t('copyElement'); overlay.remove(); }, 1200);
     });
 
-    var editBtn = document.createElement('button');
-    editBtn.style.cssText = 'background:#555;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    editBtn.textContent = t('edit');
-    editBtn.addEventListener('click', function () { switchMode(!editMode); });
-
     var saveBtn = document.createElement('button');
-    saveBtn.style.cssText = 'display:none;background:#FF5733;color:white;border:none;padding:7px 18px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
+    saveBtn.style.cssText = 'background:#FF5733;color:white;border:none;padding:7px 18px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
     saveBtn.textContent = t('save');
     saveBtn.addEventListener('click', function () {
       errMsg.style.display = 'none';
       var edited;
-      try { edited = JSON.parse(jsonArea.value); }
+      try { edited = parseYaml(yamlArea.value); }
       catch (e) {
-        errMsg.textContent = t('jsonError') + e.message;
+        errMsg.textContent = t('yamlError') + e.message;
         errMsg.style.display = 'block';
         return;
       }
@@ -1157,12 +1252,10 @@
     btns.appendChild(deleteBtn);
     btns.appendChild(copyBtn);
     btns.appendChild(copyElBtn);
-    btns.appendChild(editBtn);
     btns.appendChild(saveBtn);
     btns.appendChild(closeBtn);
     box.appendChild(header);
-    box.appendChild(yamlPre);
-    box.appendChild(jsonArea);
+    box.appendChild(yamlArea);
     box.appendChild(errMsg);
     box.appendChild(btns);
     overlay.appendChild(box);

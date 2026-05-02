@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.29.3] - 2026-05-02
+
+### Changed
+- Element popup now edits YAML directly instead of switching to JSON edit mode
+- Sidebar panel and README now describe the editor as a YAML editor
+
+### Fixed
+- Copy/paste overlay controls no longer overlap the main editor status bar
+- Stale paste buttons and duplicate editor bars are removed before rebuilding the overlay
+
 ## [0.29.2] - 2026-05-02
 
 ### Added
