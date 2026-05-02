@@ -1,89 +1,12 @@
-// HA Drag Editor v28 — Bilingual DE/EN (auto-detect via navigator.language)
+// HA Drag Editor v24 — Safari/iPad fix: position:absolute auf documentElement für layer/crosshairs/resizeBox/pasteBtns (kein position:fixed in transform-Containern)
 (function () {
   'use strict';
-  console.log('%c[HA-Drag-Editor] v28 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
-
-  // ── i18n ──────────────────────────────────────────────────────────────────
-  var DE = (navigator.language || 'en').toLowerCase().startsWith('de');
-
-  var T = {
-    loading:            DE ? 'Lade...'                                   : 'Loading...',
-    ready:              DE ? '✓ Bereit — Dashboard mit picture-elements navigieren' : '✓ Ready — navigate to a dashboard with a picture-elements card',
-    noConnection:       DE ? '❌ HA-Verbindung nicht gefunden'            : '❌ HA connection not found',
-    noView:             DE ? '❌ View nicht gefunden'                     : '❌ View not found',
-    noRoot:             DE ? '❌ #root nicht gefunden nach Wartezeit'     : '❌ #root not found after timeout',
-    connLost:           DE ? '❌ Verbindung verloren'                     : '❌ Connection lost',
-    undoing:            DE ? 'Rückgängig machen...'                      : 'Undoing...',
-    undoDone:           DE ? '✓ Rückgängig'                              : '✓ Undone',
-    redoing:            DE ? 'Wiederherstellen...'                       : 'Redoing...',
-    redoDone:           DE ? '✓ Wiederhergestellt'                       : '✓ Redone',
-    saving:             DE ? 'Speichere...'                              : 'Saving...',
-    saved:              DE ? '✓ Gespeichert'                             : '✓ Saved',
-    savingN:            DE ? 'Speichere {n} Elemente...'                 : 'Saving {n} elements...',
-    savedN:             DE ? '✓ {n} Elemente gespeichert'               : '✓ {n} elements saved',
-    scaleSaved:         DE ? '✓ Skalierung gespeichert: {s}%'           : '✓ Scale saved: {s}%',
-    scaleSaving:        DE ? t('scaleSaving')                   : 'Saving scale...',
-    gridLabel:          DE ? 'Grid: {v}'                                 : 'Grid: {v}',
-    gridOff:            DE ? 'Aus'                                       : 'Off',
-    filterResult:       DE ? '🔍 {m}/{t} Elemente (Filter: "{q}")'      : '🔍 {m}/{t} elements (filter: "{q}")',
-    allElements:        DE ? '{m}/{t} Elemente'                          : '{m}/{t} elements',
-    resizeActive:       DE ? '✓ Resize aktiv — auf Element klicken'     : '✓ Resize active — click an element',
-    resizeOff:          DE ? 'Resize deaktiviert'                        : 'Resize disabled',
-    resizeHint:         DE ? '🔲 Resize-Box: an Eck-Handles ziehen'     : '🔲 Resize box: drag corner handles',
-    bufferCleared:      DE ? 'Buffer geleert'                            : 'Buffer cleared',
-    pasting:            DE ? 'Füge ein...'                               : 'Pasting...',
-    pasted:             DE ? '✓ "{n}" eingefügt'                        : '✓ "{n}" pasted',
-    noPicEls:           DE ? '❌ Kein picture-elements in diesem Tab'    : '❌ No picture-elements in this tab',
-    formatCopied:       DE ? 'Format von [{n}] kopiert — Alt+Klick auf Ziel' : 'Format from [{n}] copied — Alt+click target',
-    formatPasting:      DE ? 'Übertrage Format → [{i}] {n}...'          : 'Applying format → [{i}] {n}...',
-    formatPasted:       DE ? '✓ Format übertragen auf [{i}] {n}'        : '✓ Format applied to [{i}] {n}',
-    defaultMsg:         DE ? '✓ {v} — {c} Elemente  |  Dblclick=YAML  Alt=Format' : '✓ {v} — {c} elements  |  Dblclick=YAML  Alt=Format',
-    selected:           DE ? '✓ [{i}] markiert ({c} aktiv)'             : '✓ [{i}] selected ({c} active)',
-    deselected:         DE ? '❌ [{i}] demarkiert ({c} aktiv)'          : '❌ [{i}] deselected ({c} active)',
-    allDeselected:      DE ? 'Alle demarkiert'                           : 'All deselected',
-    arrowMove:          DE ? '↦ {t}% / {l}%  (Pfeiltaste, {s}%)'       : '↦ {t}% / {l}%  (arrow key, {s}%)',
-    dragPos:            DE ? '[{i}] {n}  top:{t}%  left:{l}%'           : '[{i}] {n}  top:{t}%  left:{l}%',
-    deleted:            DE ? '🗑 [{i}] {n} gelöscht'                    : '🗑 [{i}] {n} deleted',
-    duplicated:         DE ? '✓ [{i}] {n} dupliziert'                   : '✓ [{i}] {n} duplicated',
-    // Toolbar tooltips
-    ttDrag:             DE ? 'Drag zum Verschieben'                      : 'Drag to move',
-    ttUndo:             DE ? 'Ctrl+Z — Rückgängig'                      : 'Ctrl+Z — Undo',
-    ttRedo:             DE ? 'Ctrl+Y — Wiederherstellen'                 : 'Ctrl+Y — Redo',
-    ttResize:           DE ? 'Resize-Modus: Kreuz anklicken → Handles ziehen' : 'Resize mode: click crosshair → drag handles',
-    ttSnap:             DE ? 'Klick: Off → 1% → 3% → 5% → Off'         : 'Click: Off → 1% → 3% → 5% → Off',
-    ttResizeClose:      DE ? '✕ Resize'                                  : '✕ Resize',
-    // YAML popup
-    yamlReadonly:       DE ? 'YAML · read-only'                          : 'YAML · read-only',
-    jsonEditable:       DE ? 'JSON · editierbar'                         : 'JSON · editable',
-    copyYaml:           DE ? 'Copy YAML'                                 : 'Copy YAML',
-    copyJson:           DE ? 'Copy JSON'                                 : 'Copy JSON',
-    copied:             DE ? '✓ Kopiert!'                                : '✓ Copied!',
-    copyElement:        DE ? '📋 Element kopieren'                       : '📋 Copy element',
-    inBuffer:           DE ? '✓ Im Buffer!'                              : '✓ In buffer!',
-    bufferInfo:         DE ? '📋 "{n}" kopiert — Tab wechseln und einfügen' : '📋 "{n}" copied — switch tab to paste',
-    duplicate:          DE ? '⧉ Duplizieren'                            : '⧉ Duplicate',
-    duplicating:        DE ? 'Dupliziert...'                             : 'Duplicating...',
-    duplicateDone:      DE ? '✓ Dupliziert!'                            : '✓ Duplicated!',
-    edit:               DE ? 'Bearbeiten'                                : 'Edit',
-    save:               DE ? 'Speichern'                                 : 'Save',
-    savingBtn:          DE ? 'Speichert...'                              : 'Saving...',
-    deleteBtn:          DE ? '🗑 Löschen'                                : '🗑 Delete',
-    confirmDelete:      DE ? 'Wirklich löschen?'                         : 'Really delete?',
-    confirmYes:         DE ? '✓ Ja, löschen'                            : '✓ Yes, delete',
-    confirmNo:          DE ? 'Abbrechen'                                 : 'Cancel',
-    deleting:           DE ? 'Lösche...'                                 : 'Deleting...',
-    close:              DE ? 'Schließen'                                 : 'Close',
-    // Paste button
-    pasteBtn:           DE ? '📋 "{n}" einfügen'                        : '📋 Paste "{n}"',
-    pasteBtnTitle:      DE ? 'Element in dieses Tab einfügen'            : 'Paste element into this tab',
-    clearBuffer:        DE ? 'Buffer leeren'                             : 'Clear buffer',
-  };
-
-  function t(key, vars) {
-    var s = T[key] !== undefined ? T[key] : key;
-    if (vars) Object.keys(vars).forEach(function (k) { s = s.split('{'+k+'}').join(vars[k]); });
-    return s;
+  if (window.__haDragEditorBooted) {
+    console.warn('[HA-Drag-Editor] duplicate init prevented');
+    return;
   }
+  window.__haDragEditorBooted = true;
+  console.log('%c[HA-Drag-Editor] v24 geladen — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -106,28 +29,12 @@
   var selectedElements = {};  // { idx: { t, l, h } }
 
   // Element Search
+  var searchQuery = '';
   var allHandles = [];  // { idx, h, name }
 
   // Resize Mode
   var resizeMode = localStorage.getItem('ha_drag_resize_mode') === 'true';
   var resizeActive = null;
-
-  // Root-Cache: getActiveRoot() ist teuer (traversiert ganzen Shadow DOM) — max 1× pro 500ms
-  var _rootCache = null;
-  var _rootCacheTime = 0;
-  var ROOT_CACHE_TTL = 500;
-
-  function getCachedRoot() {
-    var now = Date.now();
-    if (_rootCache && (now - _rootCacheTime) < ROOT_CACHE_TTL && document.documentElement.contains(_rootCache)) {
-      return _rootCache;
-    }
-    _rootCache = getActiveRoot();
-    _rootCacheTime = now;
-    return _rootCache;
-  }
-
-  function invalidateRootCache() { _rootCache = null; _rootCacheTime = 0; }
 
   // Pfeiltasten-Target: zuletzt angeklicktes Kreuz
   var lastArrowTarget = null;
@@ -156,11 +63,35 @@
 
   function findAllRoots() {
     var results = [];
+    function isVisibleInActiveView(node) {
+      if (!node || !node.getBoundingClientRect) return false;
+      var rect = node.getBoundingClientRect();
+      if (rect.width <= 0 || rect.height <= 0) return false;
+
+      var n = node;
+      while (n && n !== document.documentElement) {
+        if (n.nodeType === 1) {
+          var cs = window.getComputedStyle(n);
+          if (!cs || cs.display === 'none' || cs.visibility === 'hidden') return false;
+          if (cs.opacity === '0') return false;
+          if (n.hasAttribute && (n.hasAttribute('hidden') || n.getAttribute('aria-hidden') === 'true')) return false;
+        }
+        n = n.parentNode || (n.getRootNode && n.getRootNode().host);
+      }
+
+      var view = node.closest && node.closest('hui-view');
+      if (view) {
+        var vcs = window.getComputedStyle(view);
+        if (!vcs || vcs.display === 'none' || vcs.visibility === 'hidden' || vcs.opacity === '0') return false;
+        if (view.hasAttribute('hidden') || view.getAttribute('aria-hidden') === 'true') return false;
+      }
+      return true;
+    }
     function search(root) {
       if (!root) return;
       var els = root.querySelectorAll ? root.querySelectorAll('*') : [];
       for (var i = 0; i < els.length; i++) {
-        if (els[i].id === 'root') results.push(els[i]);
+        if (els[i].id === 'root' && isVisibleInActiveView(els[i])) results.push(els[i]);
         if (els[i].shadowRoot) search(els[i].shadowRoot);
       }
     }
@@ -203,13 +134,14 @@
   }
 
   function getRect() {
-    var root = getCachedRoot();
+    var root = getActiveRoot();
     return root ? root.getBoundingClientRect() : null;
   }
 
   // Findet das DOM-Element im picture-elements #root, das einer Position (top%/left%)
   // am nächsten kommt. Wird beim Drag-Start aufgerufen, damit das Element live mitwandert.
-  function findDomElByPos(root, topPct, leftPct) {
+  function findDomElByPos(root, topPct, leftPct, opts) {
+    opts = opts || {};
     if (!root) return null;
     var rr = root.getBoundingClientRect();
     var targetX = leftPct / 100 * rr.width;
@@ -221,11 +153,22 @@
       // Skip background image (vollflächig)
       var cr = c.getBoundingClientRect();
       if (cr.width >= rr.width * 0.95 && cr.height >= rr.height * 0.95) continue;
+      // Skip nicht-interaktive/overlay-artige Targets (führen sonst zu falscher Zuordnung)
+      var cs = window.getComputedStyle(c);
+      if (!cs) continue;
+      if (cs.display === 'none' || cs.visibility === 'hidden' || cs.opacity === '0') continue;
+      if (cs.pointerEvents === 'none') continue;
+      // Sehr große Flächen (z. B. Glow-Conditionals) nicht als Drag-Target verwenden
+      if (cr.width >= rr.width * 0.35 || cr.height >= rr.height * 0.35) continue;
       // Position relativ zum root
       var cx = (cr.left - rr.left) + cr.width / 2;
       var cy = (cr.top - rr.top) + cr.height / 2;
       var dx = cx - targetX, dy = cy - targetY;
       var d = dx * dx + dy * dy;
+      if (opts.maxDistPct) {
+        var maxPx = Math.max(rr.width, rr.height) * opts.maxDistPct / 100;
+        if (d > maxPx * maxPx) continue;
+      }
       if (d < bestDist) { bestDist = d; best = c; }
     }
     return best;
@@ -301,21 +244,46 @@
     return { top: t, left: l };
   }
 
-  function saveElPos(cfg, viewIdx, cardPath, elIdx, t, l) {
-    var card = getCardByPath(cfg, viewIdx, cardPath);
-    var el = card.elements[elIdx];
+  function setElPosOnElement(el, t, l) {
     var s = unwrapElStyle(el);
-    if (!s) return;
+    if (!s && !el.style) return false;
     // Niemals Infinity/NaN speichern → Element würde unsichtbar werden
     if (typeof t !== 'number' || !isFinite(t)) t = 50;
     if (typeof l !== 'number' || !isFinite(l)) l = 50;
     t = Math.max(0, Math.min(100, t));
     l = Math.max(0, Math.min(100, l));
-    s.top = t.toFixed(1) + '%';
-    s.left = l.toFixed(1) + '%';
+    var topVal = t.toFixed(1) + '%';
+    var leftVal = l.toFixed(1) + '%';
+    // Direkt am Element schreiben, falls vorhanden
+    if (el.style) {
+      el.style.top = topVal;
+      el.style.left = leftVal;
+    }
+    // Und zusätzlich auf das aufgelöste style-Objekt (z.B. conditional -> inner element)
+    if (s) {
+      s.top = topVal;
+      s.left = leftVal;
+    }
+    return true;
   }
 
-  function shortName(el, idx) {
+  function saveElPos(cfg, viewIdx, cardPath, elIdx, t, l) {
+    var card = getCardByPath(cfg, viewIdx, cardPath);
+    var el = card.elements[elIdx];
+    return setElPosOnElement(el, t, l);
+  }
+
+  function readElPosFromCfg(cfg, viewIdx, cardPath, elIdx) {
+    try {
+      var card = getCardByPath(cfg, viewIdx, cardPath);
+      return getElInfo(card.elements[elIdx]);
+    } catch (e) {
+      return null;
+    }
+  }
+
+
+  function shortName(el, idx, info) {
     var e = el.entity || (el.card && el.card.entity)
           || (el.elements && el.elements[0] && el.elements[0].entity)
           || (el.conditions && el.conditions[0] && el.conditions[0].entity)
@@ -336,7 +304,9 @@
         el.elements[0].type === 'custom:button-card' && !el.elements[0].entity) {
       n = '⬤ ' + n;
     }
-    return n;
+    var typeTag = el.type || 'el';
+    var posTag = info ? ('@' + info.top.toFixed(1) + '/' + info.left.toFixed(1)) : '';
+    return '[' + idx + '] ' + typeTag + ' | ' + n + posTag;
   }
 
   // ── YAML Serializer ────────────────────────────────────────────────────────
@@ -393,11 +363,11 @@
     bar.id = 'ha-drag-editor-bar';
     // position:absolute + manuelles viewport-tracking → funktioniert auch in Safari
     // (position:fixed bricht in Safari innerhalb von HA's transform-Containern)
-    bar.style.cssText = 'position:absolute;z-index:2147483647;width:630px;background:rgba(0,0,0,0.7);color:white;font:bold 11px monospace;border-radius:8px;pointer-events:all;user-select:none;box-shadow:0 4px 12px rgba(0,0,0,0.6);display:flex;align-items:center;gap:6px;padding:10px 14px;cursor:move;border:1px solid rgba(255,255,255,0.3);box-sizing:border-box;';
+    bar.style.cssText = 'position:absolute;z-index:2147483647;width:min(1120px,calc(100vw - 24px));background:rgba(0,0,0,0.78);color:white;font:bold 11px monospace;border-radius:8px;pointer-events:all;user-select:none;box-shadow:0 4px 12px rgba(0,0,0,0.6);display:flex;align-items:center;gap:6px;padding:10px 14px;cursor:move;border:1px solid rgba(255,255,255,0.3);box-sizing:border-box;';
 
     var dragHandle = document.createElement('div');
     dragHandle.style.cssText = 'width:8px;height:8px;background:rgba(255,255,255,0.6);border-radius:50%;cursor:grab;flex-shrink:0;';
-    dragHandle.title = t('ttDrag');
+    dragHandle.title = 'Drag zum Verschieben';
     bar.appendChild(dragHandle);
 
     // Position-Tracking: Bar relativ zum Viewport halten (default: bottom-right, 20px Abstand)
@@ -491,7 +461,7 @@
       state.barUndoBtn = document.createElement('button');
       state.barUndoBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 10px;border-radius:4px;font:bold 16px monospace;cursor:pointer;margin-right:2px;transition:all 0.2s;line-height:1;';
       state.barUndoBtn.textContent = '↶';
-      state.barUndoBtn.title = t('ttUndo');
+      state.barUndoBtn.title = 'Ctrl+Z — Rückgängig';
       state.barUndoBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barUndoBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barUndoBtn.addEventListener('click', function (e) { e.preventDefault(); performUndo(currentWsPath, function () { initEditor(); }); });
@@ -500,20 +470,20 @@
       state.barRedoBtn = document.createElement('button');
       state.barRedoBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 10px;border-radius:4px;font:bold 16px monospace;cursor:pointer;margin-right:8px;transition:all 0.2s;line-height:1;';
       state.barRedoBtn.textContent = '↷';
-      state.barRedoBtn.title = t('ttRedo');
+      state.barRedoBtn.title = 'Ctrl+Y — Wiederherstellen';
       state.barRedoBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barRedoBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barRedoBtn.addEventListener('click', function (e) { e.preventDefault(); performRedo(currentWsPath, function () { initEditor(); }); });
       state.bar.appendChild(state.barRedoBtn);
 
       state.barMsg = document.createElement('span');
-      state.barMsg.style.cssText = 'flex:1;min-width:0;color:rgba(255,255,255,0.9);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+      state.barMsg.style.cssText = 'flex:1;min-width:0;color:rgba(255,255,255,0.95);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:clip;';
       state.bar.appendChild(state.barMsg);
 
       state.barResizeBtn = document.createElement('button');
       state.barResizeBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
       state.barResizeBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:middle"><polyline points="1,5 1,1 5,1" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="8,1 12,1 12,5" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="12,8 12,12 8,12" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="5,12 1,12 1,8" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/></svg>';
-      state.barResizeBtn.title = t('ttResize');
+      state.barResizeBtn.title = 'Resize-Modus: Klick → Kreuz anklicken → Handles ziehen';
       state.barResizeBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barResizeBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barResizeBtn.addEventListener('click', toggleResizeMode);
@@ -521,7 +491,7 @@
 
       state.barSnapBtn = document.createElement('button');
       state.barSnapBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
-      state.barSnapBtn.title = t('ttSnap');
+      state.barSnapBtn.title = 'Klick: Off → 1% → 3% → 5% → Off';
       state.barSnapBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
       state.barSnapBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
       state.barSnapBtn.addEventListener('click', toggleSnapGrid);
@@ -535,7 +505,7 @@
     state.barRedoBtn.disabled = redoStack.length === 0;
     state.barRedoBtn.style.opacity = redoStack.length === 0 ? '0.4' : '1';
 
-    var snapLbl = snapGrid === 'off' ? t('gridOff').toUpperCase() : snapGrid + '%';
+    var snapLbl = snapGrid === 'off' ? 'OFF' : snapGrid + '%';
     state.barSnapBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="vertical-align:middle;margin-right:3px"><line x1="4" y1="0" x2="4" y2="12" stroke="white" stroke-width="1"/><line x1="8" y1="0" x2="8" y2="12" stroke="white" stroke-width="1"/><line x1="0" y1="4" x2="12" y2="4" stroke="white" stroke-width="1"/><line x1="0" y1="8" x2="12" y2="8" stroke="white" stroke-width="1"/></svg>' + snapLbl;
 
     var txt = m;
@@ -545,6 +515,22 @@
 
   function setBar(m) {
     updateBar(m);
+  }
+
+  function showDebugBox(m) {
+    if (localStorage.getItem('ha_drag_debug') !== 'true') {
+      var existing = document.getElementById('ep-save-debug');
+      if (existing && existing.parentNode) existing.parentNode.removeChild(existing);
+      return;
+    }
+    var box = document.getElementById('ep-save-debug');
+    if (!box) {
+      box = document.createElement('div');
+      box.id = 'ep-save-debug';
+      box.style.cssText = 'position:fixed;z-index:2147483647;left:12px;top:12px;max-width:calc(100vw - 24px);background:rgba(0,0,0,0.9);color:#fff;font:bold 12px/1.35 monospace;padding:10px 12px;border-radius:8px;border:2px solid #FF5733;box-shadow:0 4px 14px rgba(0,0,0,0.65);white-space:pre-wrap;pointer-events:none;';
+      document.documentElement.appendChild(box);
+    }
+    box.textContent = m + '\n' + new Date().toLocaleTimeString();
   }
 
   function pushUndoState(cfg, viewIdx, cardPath, elIdx, oldTop, oldLeft) {
@@ -557,15 +543,15 @@
     if (undoStack.length === 0) return;
     var st = undoStack.pop();
     var liveConn = getConn();
-    if (!liveConn) { setBar(t('connLost')); undoStack.push(st); return; }
-    setBar(t('undoing'));
+    if (!liveConn) { setBar('❌ Verbindung verloren'); undoStack.push(st); return; }
+    setBar('Rückgängig machen...');
     // Aktuelle Config holen → für Redo speichern; dann revert auf alten Snapshot
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (currentCfg) {
         redoStack.push({ cfg: JSON.parse(JSON.stringify(currentCfg)) });
         return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: st.cfg });
       })
-      .then(function () { setBar(t('undoDone') + ' (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
+      .then(function () { setBar('✓ Rückgängig (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
       .catch(function (err) { undoStack.push(st); setBar('❌ ' + (err.message || 'Fehler')); });
   }
 
@@ -573,8 +559,8 @@
     if (redoStack.length === 0) return;
     var st = redoStack.pop();
     var liveConn = getConn();
-    if (!liveConn) { setBar(t('connLost')); redoStack.push(st); return; }
-    setBar(t('redoing'));
+    if (!liveConn) { setBar('❌ Verbindung verloren'); redoStack.push(st); return; }
+    setBar('Wiederherstellen...');
     // Aktuelle Config in undoStack zurückschieben, damit man wieder undo machen kann
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (currentCfg) {
@@ -582,7 +568,7 @@
         if (undoStack.length > MAX_HISTORY) undoStack.shift();
         return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: st.cfg });
       })
-      .then(function () { setBar(t('redoDone') + ' (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
+      .then(function () { setBar('✓ Wiederhergestellt (Undo:' + undoStack.length + '  Redo:' + redoStack.length + ')'); onSuccess && onSuccess(); })
       .catch(function (err) { redoStack.push(st); setBar('❌ ' + (err.message || 'Fehler')); });
   }
 
@@ -596,11 +582,11 @@
     var idx = SNAP_OPTIONS.indexOf(snapGrid);
     snapGrid = SNAP_OPTIONS[(idx + 1) % SNAP_OPTIONS.length];
     localStorage.setItem('ha_drag_snap_grid', snapGrid);
-    setBar(t('gridLabel', {v: snapGrid === 'off' ? t('gridOff') : snapGrid + '%'}));
+    setBar('Grid: ' + (snapGrid === 'off' ? 'Aus' : snapGrid + '%'));
   }
 
   function filterHandles(query) {
-    var searchQuery = query.toLowerCase();
+    searchQuery = query.toLowerCase();
     var matches = 0;
     allHandles.forEach(function (item) {
       var match = !query || item.name.toLowerCase().indexOf(searchQuery) !== -1;
@@ -608,7 +594,8 @@
       item.h.style.pointerEvents = match ? 'all' : 'none';
       if (match) matches++;
     });
-    var txt = query ? t('filterResult', {m: matches, t: allHandles.length, q: query}) : t('allElements', {m: matches, t: allHandles.length});
+    var txt = matches + '/' + allHandles.length + ' Elemente';
+    if (query) txt = '🔍 ' + txt + ' (Filter: "' + query + '")';
     setBar(txt);
   }
 
@@ -616,20 +603,13 @@
     resizeMode = !resizeMode;
     localStorage.setItem('ha_drag_resize_mode', String(resizeMode));
     if (!resizeMode) hideResizeBox();
-    setBar(resizeMode ? t('resizeActive') : t('resizeOff'));
+    setBar(resizeMode ? '✓ Resize aktiv — auf Element klicken' : 'Resize deaktiviert');
   }
 
   // ── Resize-Box ─────────────────────────────────────────────────────────────
 
   function hideResizeBox() {
     if (state.resizeBox) { state.resizeBox.remove(); state.resizeBox = null; }
-    if (state._resizeListeners) {
-      document.removeEventListener('mousemove', state._resizeListeners.move, true);
-      document.removeEventListener('mouseup',   state._resizeListeners.up,   true);
-      window.removeEventListener('resize', state._resizeListeners.placeBox);
-      window.removeEventListener('scroll', state._resizeListeners.placeBox, true);
-      state._resizeListeners = null;
-    }
     resizeActive = null;
   }
 
@@ -702,7 +682,7 @@
     ];
     handles.forEach(function (hh) {
       var grip = document.createElement('div');
-      grip.style.cssText = 'position:absolute;width:18px;height:18px;background:#FFD700;border:2px solid #000;border-radius:3px;left:' + hh.x + ';top:' + hh.y + ';transform:translate(-50%,-50%);cursor:' + hh.cur + ';pointer-events:all;';
+      grip.style.cssText = 'position:absolute;width:12px;height:12px;background:#FFD700;border:2px solid #000;border-radius:2px;left:' + hh.x + ';top:' + hh.y + ';transform:translate(-50%,-50%);cursor:' + hh.cur + ';pointer-events:all;';
       grip.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
         resizeActive = {
@@ -715,8 +695,8 @@
     // Schließen-Button
     var closeBtn = document.createElement('div');
     closeBtn.style.cssText = 'position:absolute;top:-26px;right:-2px;background:#000;color:#fff;font:bold 11px monospace;padding:3px 8px;border-radius:4px;cursor:pointer;pointer-events:all;border:1px solid #FFD700;';
-    closeBtn.textContent = t('ttResizeClose');
-    closeBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); hideResizeBox(); setBar(t('resizeOff')); });
+    closeBtn.textContent = '✕ Resize';
+    closeBtn.addEventListener('click', function (e) { e.preventDefault(); e.stopPropagation(); hideResizeBox(); setBar('Resize-Box geschlossen'); });
     box.appendChild(closeBtn);
 
     // Größen-Anzeige
@@ -724,50 +704,20 @@
     label.style.cssText = 'position:absolute;bottom:-22px;left:0;background:#000;color:#FFD700;font:bold 10px monospace;padding:2px 6px;border-radius:3px;pointer-events:none;';
     box.appendChild(label);
 
-    var scaleInputRef = null;
     function updateLabel() {
       label.textContent = 'Scale: ' + (scale * 100).toFixed(0) + '%  (' + Math.round(baseW * scale) + '×' + Math.round(baseH * scale) + 'px)';
-      if (scaleInputRef) scaleInputRef.value = (scale * 100).toFixed(0);
     }
     updateLabel();
 
-    // Scale-Direkteingabe + Preset-Buttons
-    var scaleCtrl = document.createElement('div');
-    scaleCtrl.style.cssText = 'position:absolute;bottom:-52px;left:0;display:flex;gap:4px;align-items:center;pointer-events:all;';
-    var scaleInput = document.createElement('input');
-    scaleInput.type = 'number'; scaleInput.min = '5'; scaleInput.max = '1000'; scaleInput.step = '1';
-    scaleInput.value = (scale * 100).toFixed(0);
-    scaleInput.style.cssText = 'width:54px;background:#111;color:#FFD700;border:1px solid #FFD700;padding:2px 4px;border-radius:3px;font:bold 10px monospace;text-align:center;outline:none;';
-    scaleInput.addEventListener('change', function () {
-      var v = parseFloat(this.value) / 100;
-      if (isNaN(v) || v < 0.05 || v > 10) return;
-      scale = v;
-      domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
-      placeBox(); updateLabel();
-    });
-    scaleCtrl.appendChild(scaleInput);
-    scaleInputRef = scaleInput;
-    [50, 75, 100, 150, 200].forEach(function (pct) {
-      var pb = document.createElement('button');
-      pb.style.cssText = 'background:#222;color:#FFD700;border:1px solid #555;padding:2px 5px;border-radius:3px;font:bold 9px monospace;cursor:pointer;';
-      pb.textContent = pct + '%';
-      pb.addEventListener('click', function (e) {
-        e.stopPropagation();
-        scale = pct / 100;
-        domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
-        placeBox(); updateLabel();
-      });
-      scaleCtrl.appendChild(pb);
-    });
-    box.appendChild(scaleCtrl);
-
     // Resize-Mausevents — proportionale Skalierung via transform:scale
-    var _resizeMoveScheduled = false;
     function onMove(e) {
       if (!resizeActive) return;
       var dx = e.clientX - resizeActive.sx;
       var dy = e.clientY - resizeActive.sy;
+      var sign = 1;
       var id = resizeActive.id;
+      // Diagonal-Skalierung anhand der Größe-Veränderung (positiv = größer)
+      // Eckhandles: kombiniertes dx+dy. Kantenhandles: nur die relevante Achse.
       var delta = 0;
       if (id === 'se') delta = (dx + dy) / 2;
       else if (id === 'nw') delta = -(dx + dy) / 2;
@@ -777,30 +727,27 @@
       else if (id === 'w') delta = -dx;
       else if (id === 's') delta = dy;
       else if (id === 'n') delta = -dy;
+      // Skalierungs-Sensitivität: 200px Bewegung = ×2
       var newScale = resizeActive.sScale * (1 + delta / 200);
       newScale = Math.max(0.05, Math.min(10, newScale));
+      // Snap auf die aktuell gewählte Snap-Stufe (in % Schritten); für Scale halbiert
       if (snapGrid !== 'off') {
         var step = parseFloat(snapGrid) / 100;
         if (step > 0) newScale = Math.round(newScale / step) * step;
       }
       scale = newScale;
-      if (!_resizeMoveScheduled) {
-        _resizeMoveScheduled = true;
-        requestAnimationFrame(function () {
-          _resizeMoveScheduled = false;
-          domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
-          placeBox();
-          updateLabel();
-        });
-      }
+      // Live im DOM anwenden
+      domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
+      placeBox();
+      updateLabel();
     }
     function onUp() {
       if (!resizeActive) return;
       resizeActive = null;
       // In Config speichern
       var liveConn = getConn();
-      if (!liveConn) { setBar(t('connLost')); return; }
-      setBar(t('scaleSaving'));
+      if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
+      setBar('Speichere Skalierung...');
       liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
         .then(function (freshCfg) {
           var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
@@ -811,19 +758,18 @@
           s.transform = setScaleInTransform(s.transform, scale);
           return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
         })
-        .then(function () { setBar(t('scaleSaved', {s: (scale * 100).toFixed(0)})); })
+        .then(function () { setBar('✓ Skalierung gespeichert: ' + (scale * 100).toFixed(0) + '%'); })
         .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
     }
     document.addEventListener('mousemove', onMove, true);
     document.addEventListener('mouseup', onUp, true);
 
-    // Listener-Referenzen speichern → sauberes Cleanup in hideResizeBox()
-    state._resizeListeners = { move: onMove, up: onUp, placeBox: placeBox };
+    // Repositionierung bei Resize/Scroll
     state._resizeBoxReposition = placeBox;
     window.addEventListener('resize', placeBox);
     window.addEventListener('scroll', placeBox, true);
 
-    setBar(t('resizeHint'));
+    setBar('🔲 Resize-Box: an Eck-Handles ziehen');
   }
 
   // ── Element-Buffer Paste-Button ────────────────────────────────────────────
@@ -836,18 +782,18 @@
     var btn = document.createElement('div');
     // position:absolute auf documentElement — Safari-fix (kein position:fixed in transform-Containern)
     btn.style.cssText = 'position:absolute;z-index:999999;background:rgba(0,0,0,0.7);color:#ccc;font:bold 12px monospace;padding:6px 18px;border-radius:8px;cursor:pointer;white-space:nowrap;box-shadow:0 2px 10px rgba(0,0,0,0.6);';
-    btn.textContent = t('pasteBtn', {n: elementBuffer._name});
-    btn.title = t('pasteBtnTitle');
+    btn.textContent = '📋 "' + elementBuffer._name + '" einfügen';
+    btn.title = 'Element in dieses Tab einfügen';
     btn.addEventListener('click', function () { pasteElement(); });
 
     var cancelBtn = document.createElement('div');
     cancelBtn.style.cssText = 'position:absolute;z-index:999999;background:#555;color:#ccc;font:bold 13px monospace;width:28px;height:28px;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.6);';
     cancelBtn.textContent = '✕';
-    cancelBtn.title = t('clearBuffer');
+    cancelBtn.title = 'Buffer leeren';
     cancelBtn.addEventListener('click', function () {
       elementBuffer = null;
       updatePasteBtn();
-      setBar(t('bufferCleared'));
+      setBar('Buffer geleert');
     });
 
     document.documentElement.appendChild(btn);
@@ -876,15 +822,15 @@
   function pasteElement() {
     if (!elementBuffer) return;
     var liveConn = getConn();
-    if (!liveConn) { setBar(t('connLost')); return; }
-    setBar(t('pasting'));
+    if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
+    setBar('Füge ein...');
     liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: currentWsPath, force: true })
       .then(function (freshCfg) {
         var loc = getCurrentLoc();
         var vIdx = getViewIdx(freshCfg, loc.view);
         var view = freshCfg.views[vIdx];
         var picInfo = getPicElsCard(view);
-        if (!picInfo) { setBar(t('noPicEls')); return Promise.reject(new Error('no pic-els')); }
+        if (!picInfo) { setBar('❌ Kein picture-elements in diesem Tab'); return Promise.reject(new Error('no pic-els')); }
         var card = getCardByPath(freshCfg, vIdx, picInfo.path);
         var newEl = JSON.parse(JSON.stringify(elementBuffer));
         delete newEl._name;
@@ -895,7 +841,7 @@
         var name = elementBuffer._name;
         elementBuffer = null;
         updatePasteBtn();
-        setBar(t('pasted', {n: name}));
+        setBar('✓ "' + name + '" eingefügt');
         setTimeout(initEditor, 600);
       })
       .catch(function (err) {
@@ -927,7 +873,7 @@
 
     var modeLbl = document.createElement('div');
     modeLbl.style.cssText = 'color:#666;font:10px monospace;';
-    modeLbl.textContent = t('yamlReadonly');
+    modeLbl.textContent = 'YAML · read-only';
 
     header.appendChild(title);
     header.appendChild(modeLbl);
@@ -951,8 +897,8 @@
       editMode = toEdit;
       yamlPre.style.display = toEdit ? 'none' : 'block';
       jsonArea.style.display = toEdit ? 'block' : 'none';
-      modeLbl.textContent = toEdit ? t('jsonEditable') : t('yamlReadonly');
-      editBtn.textContent = toEdit ? 'YAML' : t('edit');
+      modeLbl.textContent = toEdit ? 'JSON · editierbar' : 'YAML · read-only';
+      editBtn.textContent = toEdit ? 'YAML' : 'Bearbeiten';
       saveBtn.style.display = toEdit ? 'inline-block' : 'none';
       errMsg.style.display = 'none';
       if (toEdit) jsonArea.focus();
@@ -963,66 +909,35 @@
 
     var copyBtn = document.createElement('button');
     copyBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    copyBtn.textContent = t('copyYaml');
+    copyBtn.textContent = 'Copy YAML';
     copyBtn.addEventListener('click', function () {
       var txt = editMode ? jsonArea.value : yaml;
       navigator.clipboard.writeText(txt).then(function () {
-        copyBtn.textContent = t('copied');
-        setTimeout(function () { copyBtn.textContent = editMode ? t('copyJson') : t('copyYaml'); }, 2000);
+        copyBtn.textContent = '✓ Kopiert!';
+        setTimeout(function () { copyBtn.textContent = editMode ? 'Copy JSON' : 'Copy YAML'; }, 2000);
       });
     });
 
     var copyElBtn = document.createElement('button');
     copyElBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    copyElBtn.textContent = t('copyElement');
+    copyElBtn.textContent = '📋 Element kopieren';
     copyElBtn.addEventListener('click', function () {
       elementBuffer = JSON.parse(JSON.stringify(elCfg));
       elementBuffer._name = name.replace(/^\[.*?\]\s*/, '');
       updatePasteBtn();
-      copyElBtn.textContent = t('inBuffer');
-      setBar(t('bufferInfo', {n: elementBuffer._name}));
-      setTimeout(function () { copyElBtn.textContent = t('copyElement'); overlay.remove(); }, 1200);
-    });
-
-    var dupBtn = document.createElement('button');
-    dupBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    dupBtn.textContent = t('duplicate');
-    dupBtn.addEventListener('click', function () {
-      var liveConn = getConn();
-      if (!liveConn) { errMsg.textContent = t('connLost'); errMsg.style.display = 'block'; return; }
-      dupBtn.textContent = t('duplicating'); dupBtn.disabled = true;
-      liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
-        .then(function (freshCfg) {
-          var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
-          var clone = JSON.parse(JSON.stringify(freshCard.elements[elIdx]));
-          var s = unwrapElStyle(clone);
-          if (s) {
-            s.top  = Math.min(95, parseFloat(s.top)  + 5).toFixed(1) + '%';
-            s.left = Math.min(95, parseFloat(s.left) + 5).toFixed(1) + '%';
-          }
-          freshCard.elements.push(clone);
-          return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
-        })
-        .then(function () {
-          setBar(t('duplicated', {i: elIdx, n: name}));
-          dupBtn.textContent = t('duplicateDone');
-          setTimeout(function () { closePopup(); setTimeout(initEditor, 300); }, 800);
-        })
-        .catch(function (err) {
-          dupBtn.textContent = t('duplicate'); dupBtn.disabled = false;
-          errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
-          errMsg.style.display = 'block';
-        });
+      copyElBtn.textContent = '✓ Im Buffer!';
+      setBar('📋 "' + elementBuffer._name + '" kopiert — Tab wechseln und einfügen');
+      setTimeout(function () { copyElBtn.textContent = '📋 Element kopieren'; overlay.remove(); }, 1200);
     });
 
     var editBtn = document.createElement('button');
     editBtn.style.cssText = 'background:#555;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    editBtn.textContent = t('edit');
+    editBtn.textContent = 'Bearbeiten';
     editBtn.addEventListener('click', function () { switchMode(!editMode); });
 
     var saveBtn = document.createElement('button');
     saveBtn.style.cssText = 'display:none;background:#FF5733;color:white;border:none;padding:7px 18px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    saveBtn.textContent = t('save');
+    saveBtn.textContent = 'Speichern';
     saveBtn.addEventListener('click', function () {
       errMsg.style.display = 'none';
       var edited;
@@ -1038,20 +953,20 @@
       Object.keys(edited).forEach(function (k) { el[k] = edited[k]; });
       var liveConn = getConn();
       if (!liveConn) {
-        errMsg.textContent = t('connLost');
+        errMsg.textContent = '❌ Verbindung verloren';
         errMsg.style.display = 'block';
         return;
       }
-      saveBtn.textContent = t('savingBtn');
+      saveBtn.textContent = 'Speichert...';
       saveBtn.disabled = true;
       liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: cfg })
         .then(function () {
-          saveBtn.textContent = t('saved');
+          saveBtn.textContent = '✓ Gespeichert';
           setBar('✓ [' + elIdx + '] ' + name + ' gespeichert');
           setTimeout(function () { overlay.remove(); }, 1200);
         })
         .catch(function (err) {
-          saveBtn.textContent = t('save');
+          saveBtn.textContent = 'Speichern';
           saveBtn.disabled = false;
           errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
           errMsg.style.display = 'block';
@@ -1060,64 +975,51 @@
 
     var deleteBtn = document.createElement('button');
     deleteBtn.style.cssText = 'background:#7a1a1a;color:#ffaaaa;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;margin-right:auto;';
-    deleteBtn.textContent = t('deleteBtn');
+    deleteBtn.textContent = '🗑 Löschen';
     deleteBtn.addEventListener('click', function () {
-      // Bestätigungs-UI einblenden
-      deleteBtn.style.display = 'none';
-      var confirmRow = document.createElement('div');
-      confirmRow.style.cssText = 'display:flex;gap:6px;align-items:center;margin-right:auto;';
-      var confirmTxt = document.createElement('span');
-      confirmTxt.style.cssText = 'color:#ffaaaa;font:11px monospace;';
-      confirmTxt.textContent = t('confirmDelete');
-      var yesBtn = document.createElement('button');
-      yesBtn.style.cssText = 'background:#cc2200;color:white;border:none;padding:5px 12px;border-radius:4px;font:bold 11px monospace;cursor:pointer;';
-      yesBtn.textContent = t('confirmYes');
-      var noBtn = document.createElement('button');
-      noBtn.style.cssText = 'background:#444;color:#ccc;border:none;padding:5px 10px;border-radius:4px;font:11px monospace;cursor:pointer;';
-      noBtn.textContent = t('confirmNo');
-      noBtn.addEventListener('click', function () { confirmRow.remove(); deleteBtn.style.display = ''; });
-      yesBtn.addEventListener('click', function () {
-        var liveConn = getConn();
-        if (!liveConn) { errMsg.textContent = t('connLost'); errMsg.style.display = 'block'; confirmRow.remove(); deleteBtn.style.display = ''; return; }
-        yesBtn.textContent = t('deleting'); yesBtn.disabled = true; noBtn.disabled = true;
-        liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
-          .then(function (freshCfg) {
-            var card = getCardByPath(freshCfg, viewIdx, cardPath);
-            card.elements.splice(elIdx, 1);
-            return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
-          })
-          .then(function () {
-            setBar(t('deleted', {i: elIdx, n: name}));
-            closePopup();
-            setTimeout(initEditor, 600);
-          })
-          .catch(function (err) {
-            yesBtn.textContent = t('confirmYes'); yesBtn.disabled = false; noBtn.disabled = false;
-            errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
-            errMsg.style.display = 'block';
-          });
-      });
-      confirmRow.appendChild(confirmTxt);
-      confirmRow.appendChild(yesBtn);
-      confirmRow.appendChild(noBtn);
-      btns.insertBefore(confirmRow, btns.firstChild);
+      if (deleteBtn.dataset.confirm !== '1') {
+        deleteBtn.textContent = '⚠ Sicher?';
+        deleteBtn.dataset.confirm = '1';
+        setTimeout(function () { if (deleteBtn.dataset.confirm === '1') { deleteBtn.textContent = '🗑 Löschen'; deleteBtn.dataset.confirm = '0'; } }, 3000);
+        return;
+      }
+      var liveConn = getConn();
+      if (!liveConn) { errMsg.textContent = '❌ Verbindung verloren'; errMsg.style.display = 'block'; return; }
+      deleteBtn.textContent = 'Lösche...';
+      deleteBtn.disabled = true;
+      liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
+        .then(function (freshCfg) {
+          var card = getCardByPath(freshCfg, viewIdx, cardPath);
+          card.elements.splice(elIdx, 1);
+          return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
+        })
+        .then(function () {
+          setBar('🗑 [' + elIdx + '] ' + name + ' gelöscht');
+          overlay.remove();
+          setTimeout(initEditor, 600);
+        })
+        .catch(function (err) {
+          deleteBtn.textContent = '🗑 Löschen';
+          deleteBtn.disabled = false;
+          deleteBtn.dataset.confirm = '0';
+          errMsg.textContent = '❌ ' + (err.message || JSON.stringify(err));
+          errMsg.style.display = 'block';
+        });
     });
-
-    function closePopup() { overlay.remove(); document.removeEventListener('keydown', escHandler); }
-    function escHandler(e) { if (e.key === 'Escape') closePopup(); }
-    document.addEventListener('keydown', escHandler);
 
     var closeBtn = document.createElement('button');
     closeBtn.style.cssText = 'background:#333;color:#ccc;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
-    closeBtn.textContent = t('close');
-    closeBtn.addEventListener('click', closePopup);
+    closeBtn.textContent = 'Schließen';
+    closeBtn.addEventListener('click', function () { overlay.remove(); });
 
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) closePopup(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+    document.addEventListener('keydown', function esc(e) {
+      if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); }
+    });
 
     btns.appendChild(deleteBtn);
     btns.appendChild(copyBtn);
     btns.appendChild(copyElBtn);
-    btns.appendChild(dupBtn);
     btns.appendChild(editBtn);
     btns.appendChild(saveBtn);
     btns.appendChild(closeBtn);
@@ -1139,7 +1041,7 @@
         formatBuffer[k] = JSON.parse(JSON.stringify(elCfg[k]));
       }
     });
-    setBar(t('formatCopied', {n: name}));
+    setBar('Format von [' + name + '] kopiert — Alt+Klick auf Ziel');
   }
 
   function pasteFormat(cfg, viewIdx, cardPath, elIdx, name, wsPath) {
@@ -1155,10 +1057,10 @@
     formatBuffer = null;
 
     var liveConn = getConn();
-    if (!liveConn) { setBar(t('connLost')); return; }
-    setBar(t('formatPasting', {i: elIdx, n: name}));
+    if (!liveConn) { setBar('❌ Verbindung verloren — Editor neu starten'); return; }
+    setBar('Übertrage Format → [' + elIdx + '] ' + name + '...');
     liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: cfg })
-      .then(function () { setBar(t('formatPasted', {i: elIdx, n: name})); })
+      .then(function () { setBar('✓ Format übertragen auf [' + elIdx + '] ' + name); })
       .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
   }
 
@@ -1192,7 +1094,6 @@
   var generation = 0;
 
   function cleanup() {
-    invalidateRootCache();
     generation++;
     state.placeHandlers = [];
     if (state.layer) { state.layer.remove(); state.layer = null; }
@@ -1211,16 +1112,26 @@
     lastArrowTarget = null;
     if (arrowSaveTimer) { clearTimeout(arrowSaveTimer); arrowSaveTimer = null; }
     // elementBuffer bleibt erhalten für Tab-übergreifendes Einfügen
+
+    // Hard cleanup: alle alten Overlay-Reste entfernen (auch von früheren Instanzen)
+    try {
+      var stale = document.querySelectorAll('[id^="ha-drag-"], #ha-drag-editor-bar, #ha-drag-debug');
+      for (var si = 0; si < stale.length; si++) {
+        var node = stale[si];
+        if (node && node.parentNode) node.parentNode.removeChild(node);
+      }
+    } catch (e) {}
   }
 
   // ── Editor init ────────────────────────────────────────────────────────────
 
   function initEditor() {
     cleanup();
+    showDebugBox('EP DEBUG LOADED\nwaiting for drag...');
     var myGen = generation;
     state._currentGen = myGen;
     var conn = getConn();
-    if (!conn) { setBar(t('noConnection')); return; }
+    if (!conn) { setBar('❌ HA-Verbindung nicht gefunden'); return; }
 
     var loc = getCurrentLoc();
     var dashPath = loc.dash;
@@ -1228,25 +1139,17 @@
     var wsPath = (dashPath === 'lovelace') ? null : dashPath;
     currentWsPath = wsPath;
 
-    // HA-interne Seiten haben kein Lovelace-Dashboard — kein API-Call, direkt Bereit-Meldung
-    var HA_INTERNAL = ['config', 'developer-tools', 'logbook', 'history', 'profile',
-                       'map', 'energy', 'todo', 'calendar', 'shopping-list', 'media-browser'];
-    if (HA_INTERNAL.indexOf(dashPath) !== -1) {
-      setBar(t('ready'));
-      return;
-    }
-
-    setBar(t('loading'));
+    setBar('Lade... wsPath=' + (wsPath === null ? 'null(lovelace)' : wsPath) + ' view=' + String(viewPath));
 
     conn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
       .then(function (cfg) {
         var viewIdx = getViewIdx(cfg, viewPath);
         var view = cfg.views[viewIdx];
-        if (!view) { setBar(t('noView')); return; }
+        if (!view) { setBar('❌ View nicht gefunden'); return; }
 
         var picInfo = getPicElsCard(view);
         if (!picInfo) {
-          setBar(t('ready'));
+          setBar('ℹ️ [' + viewIdx + '] "' + (view.title || '?') + '" — kein picture-elements');
           return;
         }
 
@@ -1257,26 +1160,19 @@
             setTimeout(function () { tryBuild(attempts - 1); }, 300);
             return;
           }
-          if (!rect) { setBar(t('noRoot')); return; }
+          if (!rect) { setBar('❌ #root nicht gefunden nach Wartezeit'); return; }
           if (state.layer) return;  // schon gebaut
           buildHandles(cfg, viewIdx, picInfo, wsPath);
         }
         tryBuild(10);
       })
-      .catch(function (err) {
-        var msg = err && (err.message || err.code || JSON.stringify(err));
-        // "not_found" / "unknown_dashboard" → kein Lovelace auf dieser Seite, kein Fehler
-        if (msg && (msg.indexOf('not_found') !== -1 || msg.indexOf('unknown') !== -1 || msg.indexOf('404') !== -1)) {
-          setBar(t('ready'));
-        } else {
-          setBar('❌ ' + msg);
-        }
-      });
+      .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
   }
 
   function buildHandles(cfg, viewIdx, picInfo, wsPath) {
     var cardPath = picInfo.path;
     var elements = picInfo.card.elements;
+    var seenHandleKeys = {};
 
     var layer = document.createElement('div');
     // position:absolute auf documentElement statt position:fixed auf body —
@@ -1299,25 +1195,37 @@
       if (!info) return;
       count++;
 
-      var name = shortName(elCfg, idx);
+      var name = shortName(elCfg, idx, info);
       var tPct = info.top, lPct = info.left;
+      var dedupeKey = [idx, tPct.toFixed(1), lPct.toFixed(1)].join('|');
+      if (seenHandleKeys[dedupeKey]) return;
+      seenHandleKeys[dedupeKey] = true;
 
       var posKey = Math.round(tPct) + '_' + Math.round(lPct);
       var stackIdx = usedPos[posKey] || 0;
       usedPos[posKey] = stackIdx + 1;
+      var stackOffsetPx = stackIdx * 14;
+
+      var isConditional = elCfg.type === 'conditional';
+      var mappedDom = findDomElByPos(getActiveRoot(), tPct, lPct, isConditional ? { maxDistPct: 3 } : {});
 
       var h = makeCrosshair(name);
       layer.appendChild(h);
       allHandles.push({ idx: idx, h: h, name: name });
+      h._targetDom = mappedDom || null;
 
       function placeHandle() {
         var r = getRect(); if (!r) return;
         var sx = window.pageXOffset || document.documentElement.scrollLeft || 0;
         var sy = window.pageYOffset || document.documentElement.scrollTop  || 0;
-        // Offset skaliert proportional zur Card-Breite (2.5% pro Ebene, mind. 8px)
-        var offsetPx = stackIdx * Math.max(8, r.width * 0.025);
-        h.style.left = (sx + r.left + lPct / 100 * r.width  + offsetPx) + 'px';
-        h.style.top  = (sy + r.top  + tPct / 100 * r.height + offsetPx) + 'px';
+        if (h._targetDom && document.contains(h._targetDom)) {
+          var dr = h._targetDom.getBoundingClientRect();
+          h.style.left = (sx + dr.left + dr.width / 2 + stackOffsetPx) + 'px';
+          h.style.top  = (sy + dr.top  + dr.height / 2 + stackOffsetPx) + 'px';
+          return;
+        }
+        h.style.left = (sx + r.left + lPct / 100 * r.width + stackOffsetPx) + 'px';
+        h.style.top  = (sy + r.top  + tPct / 100 * r.height + stackOffsetPx) + 'px';
       }
       placeHandle();
       if (!state.placeHandlers) state.placeHandlers = [];
@@ -1327,7 +1235,7 @@
       h.addEventListener('dblclick', function (e) {
         e.preventDefault(); e.stopPropagation();
         var liveConn = getConn();
-        if (!liveConn) { setBar(t('connLost')); return; }
+        if (!liveConn) { setBar('❌ Verbindung verloren'); return; }
         setBar('Lade [' + idx + '] ' + name + '...');
         liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
           .then(function (freshCfg) {
@@ -1340,17 +1248,19 @@
 
       h.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
+        var pathTxtDown = Array.isArray(cardPath) ? cardPath.join('.') : String(cardPath);
+        showDebugBox('MOUSEDOWN\nidx=' + idx + '\npath=' + pathTxtDown);
 
         // Shift+Klick → Element markieren/demarkieren
         if (e.shiftKey) {
           if (selectedElements[idx]) {
             delete selectedElements[idx];
             h._dot.style.background = '#FF5733';
-            setBar(t('deselected', {i: idx, c: Object.keys(selectedElements).length}));
+            setBar('❌ [' + idx + '] demarkiert (' + Object.keys(selectedElements).length + ' aktiv)');
           } else {
             selectedElements[idx] = { t: tPct, l: lPct, h: h };
             h._dot.style.background = '#FFD700';
-            setBar(t('selected', {i: idx, c: Object.keys(selectedElements).length}));
+            setBar('✓ [' + idx + '] markiert (' + (Object.keys(selectedElements).length) + ' aktiv)');
           }
           return;
         }
@@ -1362,7 +1272,7 @@
           } else {
             // Frische Config für Format-Paste
             var liveConnFmt = getConn();
-            if (!liveConnFmt) { setBar(t('connLost')); return; }
+            if (!liveConnFmt) { setBar('❌ Verbindung verloren'); return; }
             liveConnFmt.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
               .then(function (freshCfg) { pasteFormat(freshCfg, viewIdx, cardPath, idx, name, wsPath); })
               .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
@@ -1372,9 +1282,9 @@
 
         // Resize-Modus → öffne Resize-Box statt Drag
         if (resizeMode) {
-          var rRoot = getCachedRoot();
-          if (!rRoot) { setBar(t('noPicEls')); return; }
-          var rDom = findDomElByPos(rRoot, tPct, lPct);
+          var rRoot = getActiveRoot();
+          if (!rRoot) { setBar('❌ Kein picture-elements Root gefunden'); return; }
+          var rDom = h._targetDom || findDomElByPos(rRoot, tPct, lPct);
           if (!rDom) { setBar('❌ DOM-Element nicht gefunden (Tab-Wechsel? Neu laden)'); return; }
           showResizeBox(rDom, idx, picInfo, viewIdx, cardPath, wsPath, cfg);
           return;
@@ -1391,14 +1301,19 @@
           save: function (nt, nl) {
             var lc = getConn(); if (!lc) return;
             lc.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
-              .then(function (fc) {
-                undoStack.push({ cfg: JSON.parse(JSON.stringify(fc)) });
+              .then(function (freshCfg) {
+                undoStack.push({ cfg: JSON.parse(JSON.stringify(freshCfg)) });
                 if (undoStack.length > MAX_HISTORY) undoStack.shift();
                 redoStack = [];
-                saveElPos(fc, viewIdx, cardPath, idx, nt, nl);
-                return lc.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: fc });
+                var card = getCardByPath(freshCfg, viewIdx, cardPath);
+                var el = card.elements[idx];
+                var edited = JSON.parse(JSON.stringify(el));
+                if (!setElPosOnElement(edited, nt, nl)) throw new Error('style not found for idx ' + idx);
+                Object.keys(el).forEach(function (k) { delete el[k]; });
+                Object.keys(edited).forEach(function (k) { el[k] = edited[k]; });
+                return lc.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
               })
-              .then(function () { setBar(t('dragPos', {i: idx, n: name, t: nt, l: nl})); })
+              .then(function () { setBar('✓ [' + idx + '] ' + name + '  top:' + nt + '%  left:' + nl + '%'); })
               .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
           }
         });
@@ -1410,31 +1325,31 @@
             var selEl = picInfo.card.elements[selIdx];
             var selInfo = getElInfo(selEl);
             if (selInfo) {
-              var selDom = findDomElByPos(getCachedRoot(), selInfo.top, selInfo.left);
+              var selDom = findDomElByPos(getActiveRoot(),  selInfo.top, selInfo.left);
               bulkInitStates[selIdx] = { t: selInfo.top, l: selInfo.left, dom: selDom };
             }
           }
         });
 
-        // Live-Drag: DOM-Element finden und referenzieren
-        var activeRoot = getCachedRoot();
-        var activeDom = findDomElByPos(activeRoot, tPct, lPct);
+        var activeRoot = getActiveRoot();
+        var activeDom = h._targetDom || findDomElByPos(activeRoot, tPct, lPct, isConditional ? { maxDistPct: 3 } : {});
 
         globalActive = {
           h: h, idx: idx, name: name, dom: activeDom,
           sx: e.clientX, sy: e.clientY, st: tPct, sl: lPct,
           bulkInitStates: bulkInitStates,
           move: function (t, l) {
+            var active = this;
             tPct = t; lPct = l; placeHandle();
             // Live-Drag: Element direkt im DOM verschieben
-            if (globalActive.dom) {
-              globalActive.dom.style.top = t + '%';
-              globalActive.dom.style.left = l + '%';
+            if (active.dom) {
+              active.dom.style.top = t + '%';
+              active.dom.style.left = l + '%';
             }
             // Bulk move: alle markierten Elemente zusammen verschieben
-            var dt = t - globalActive.st, dl = l - globalActive.sl;
-            Object.keys(globalActive.bulkInitStates).forEach(function (selIdx) {
-              var init = globalActive.bulkInitStates[selIdx];
+            var dt = t - active.st, dl = l - active.sl;
+            Object.keys(active.bulkInitStates).forEach(function (selIdx) {
+              var init = active.bulkInitStates[selIdx];
               var newT = init.t + dt, newL = init.l + dl;
               newT = Math.max(0, Math.min(100, newT));
               newL = Math.max(0, Math.min(100, newL));
@@ -1457,36 +1372,61 @@
           },
           save: function (nt, nl) {
             var liveConn = getConn();
-            if (!liveConn) { setBar(t('connLost')); return; }
+            if (!liveConn) { setBar('❌ Verbindung verloren'); return Promise.resolve(false); }
+            var pathTxtStart = Array.isArray(cardPath) ? cardPath.join('.') : String(cardPath);
+            showDebugBox('SAVE START\nidx=' + idx + '\npath=' + pathTxtStart + '\nwant=' + nt.toFixed(1) + '/' + nl.toFixed(1));
             // Closure-capture: globalActive ist hier bereits null (gesetzt im mouseup-Handler)
             var bulkStates = bulkInitStates;
             var bulkSnapshot = {};
             Object.keys(bulkStates).forEach(function (selIdx) {
               if (selectedElements[selIdx]) bulkSnapshot[selIdx] = { t: selectedElements[selIdx].t, l: selectedElements[selIdx].l };
             });
-            var count = 1 + Object.keys(bulkStates).length;
-            setBar(t('savingN', {n: count}));
-            // Snapshot der aktuellen Config VOR der Änderung — für Undo
-            liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
+            return liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
               .then(function (freshCfg) {
                 undoStack.push({ cfg: JSON.parse(JSON.stringify(freshCfg)) });
                 if (undoStack.length > MAX_HISTORY) undoStack.shift();
                 redoStack = [];
-                saveElPos(freshCfg, viewIdx, cardPath, idx, nt, nl);
+
+                var card = getCardByPath(freshCfg, viewIdx, cardPath);
+                var el = card.elements[idx];
+                var edited = JSON.parse(JSON.stringify(el));
+                if (!setElPosOnElement(edited, nt, nl)) throw new Error('style not found for idx ' + idx);
+                Object.keys(el).forEach(function (k) { delete el[k]; });
+                Object.keys(edited).forEach(function (k) { el[k] = edited[k]; });
+
                 Object.keys(bulkSnapshot).forEach(function (selIdx) {
                   saveElPos(freshCfg, viewIdx, cardPath, selIdx, bulkSnapshot[selIdx].t, bulkSnapshot[selIdx].l);
                 });
+
                 return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
               })
-              .then(function () { setBar(t('savedN', {n: count})); })
-              .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
+              .then(function () {
+                return liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true });
+              })
+              .then(function (checkCfg) {
+                var p = readElPosFromCfg(checkCfg, viewIdx, cardPath, idx);
+                var msg = p ? (p.top.toFixed(1) + '/' + p.left.toFixed(1)) : 'missing';
+                var pathTxt = Array.isArray(cardPath) ? cardPath.join('.') : String(cardPath);
+                var dbg = 'SAVE\nidx=' + idx + '\npath=' + pathTxt + '\nwant=' + nt.toFixed(1) + '/' + nl.toFixed(1) + '\ngot=' + msg;
+                setBar(dbg.replace(/\n/g, '  '));
+                showDebugBox(dbg);
+                console.log('[HA-Drag-Editor] save:ok', { wsPath: wsPath, idx: idx, wanted: { top: nt, left: nl }, check: p });
+                return !!(p && p.top.toFixed(1) === nt.toFixed(1) && p.left.toFixed(1) === nl.toFixed(1));
+              })
+              .catch(function (err) {
+                var msg = (err && (err.message || err.code || err.error)) ? (err.message || err.code || err.error) : JSON.stringify(err);
+                setBar('DBG save:ERR wsPath=' + String(wsPath) + ' idx=' + idx + ' err=' + msg);
+                showDebugBox('SAVE ERROR\nidx=' + idx + '\nerr=' + msg);
+                console.error('[HA-Drag-Editor] save:ERR', { wsPath: wsPath, idx: idx, err: err });
+                return false;
+              });
           }
         };
       }, true);
     });
 
     var view = cfg.views[viewIdx];
-    state.defaultBarMsg = t('defaultMsg', {v: view.title || viewIdx, c: count});
+    state.defaultBarMsg = '✓ ' + (view.title || viewIdx) + ' — ' + count + ' Elemente  |  Dblclick=YAML  Alt=Format';
     setBar(state.defaultBarMsg);
     updatePasteBtn();
   }
@@ -1508,22 +1448,30 @@
     nt = safePct(snapValue(nt), nt);
     globalActive.move(nt, nl);
     if (state._resizeBoxReposition) state._resizeBoxReposition();
-    setBar(t('dragPos', {i: globalActive.idx, n: globalActive.name, t: nt, l: nl}));
+    setBar('[' + globalActive.idx + '] ' + globalActive.name + '  top:' + nt + '%  left:' + nl + '%');
   }, true);
 
   document.addEventListener('mouseup', function (e) {
     if (!globalActive) return;
     var d = globalActive; globalActive = null;
+    showDebugBox('MOUSEUP\nidx=' + d.idx + '\nname=' + d.name);
     d.h._dot.style.transform = 'translate(-50%,-50%) scale(1)';
     d.h._dot.style.background = '#FF5733';
     var r = getRect();
-    if (!r || r.width <= 0 || r.height <= 0) return;
+    if (!r || r.width <= 0 || r.height <= 0) {
+      showDebugBox('MOUSEUP ABORT\nidx=' + d.idx + '\nreason=no root rect');
+      return;
+    }
     var nl = safePct(+(d.sl + (e.clientX - d.sx) / r.width * 100).toFixed(1), d.sl);
     var nt = safePct(+(d.st + (e.clientY - d.sy) / r.height * 100).toFixed(1), d.st);
     nl = safePct(snapValue(nl), nl);
     nt = safePct(snapValue(nt), nt);
     d.move(nt, nl);
-    d.save(nt, nl);
+    d.save(nt, nl).then(function (ok) {
+      if (ok) {
+        setTimeout(function () { if (state.enabled) initEditor(); }, 600);
+      }
+    });
   }, true);
 
   // ── Enable / Disable ───────────────────────────────────────────────────────
@@ -1543,7 +1491,7 @@
           if (selectedElements[idx].h) selectedElements[idx].h._dot.style.background = '#FF5733';
         });
         selectedElements = {};
-        setBar(t('allDeselected'));
+        setBar('Alle demarkiert');
       }
       setLastArrowTarget(null);  // stellt defaultBarMsg wieder her
       return;
@@ -1559,7 +1507,7 @@
       var nt = safePct(+(pos.t + dir[1] * step).toFixed(2), pos.t);
       var nl = safePct(+(pos.l + dir[0] * step).toFixed(2), pos.l);
       lastArrowTarget.applyMove(nt, nl);
-      setBar(t('arrowMove', {t: nt, l: nl, s: step}));
+      setBar('↦ ' + nt + '% / ' + nl + '%  (Pfeiltaste, ' + step + '%)');
       // Debounce save: 600ms nach letzter Taste — globaler Timer verhindert Race bei schnellem Klick
       if (arrowSaveTimer) clearTimeout(arrowSaveTimer);
       var cap = lastArrowTarget;
@@ -1577,23 +1525,16 @@
     else if (isRedo) { e.preventDefault(); performRedo(currentWsPath, function () { initEditor(); }); }
   }, true);
 
-  // Single window-resize + scroll Handler — rAF-debounced damit nicht 100× pro Scroll feuert
-  var _repositionScheduled = false;
+  // Single window-resize + scroll Handler — repositioniert alle Kreuze und Paste-Buttons
   function repositionAll() {
-    if (_repositionScheduled) return;
-    _repositionScheduled = true;
-    requestAnimationFrame(function () {
-      _repositionScheduled = false;
-      invalidateRootCache();
-      if (state.placeHandlers) {
-        for (var i = 0; i < state.placeHandlers.length; i++) {
-          try { state.placeHandlers[i](); } catch (e) {}
-        }
+    if (state.placeHandlers) {
+      for (var i = 0; i < state.placeHandlers.length; i++) {
+        try { state.placeHandlers[i](); } catch (e) {}
       }
-      if (state._pasteBtnReposition) {
-        try { state._pasteBtnReposition(); } catch (e) {}
-      }
-    });
+    }
+    if (state._pasteBtnReposition) {
+      try { state._pasteBtnReposition(); } catch (e) {}
+    }
   }
   window.addEventListener('resize', repositionAll);
   window.addEventListener('scroll', repositionAll, true);
@@ -1605,7 +1546,6 @@
     var newPath = window.location.pathname;
     if (newPath !== lastNavPath) {
       lastNavPath = newPath;
-      invalidateRootCache();
       if (state.enabled) setTimeout(initEditor, 500);
     }
   };

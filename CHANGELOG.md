@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.29] - 2026-05-02
+
+### Fixed
+- Drag-Speicherung schreibt wieder zuverlässig in die zugehörige Lovelace-Config
+- `mouseup`-Flow korrigiert: Persistenz wird nach dem finalen Move sicher ausgeführt
+- Conditional-Elemente ziehen nur ein sichtbares passendes DOM-Element mit und greifen nicht mehr auf benachbarte Icons
+- Ghost-/Doppelkreuze bei versteckten Dashboard-Instanzen reduziert
+
 ## [0.24] - 2026-04-28
 
 ### Fixed
