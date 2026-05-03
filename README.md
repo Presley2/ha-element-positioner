@@ -1,5 +1,10 @@
 # Element Positioner
 
+Visual Drag & Drop editor for Home Assistant `picture-elements` dashboards.
+Move, resize, copy and edit Lovelace floor-plan elements directly in the browser, with automatic saving back to Home Assistant.
+
+Element Positioner adds a sidebar panel, registers its Lovelace frontend resource automatically, and is packaged as a HACS custom integration.
+
 <img src="https://raw.githubusercontent.com/Presley2/ha-element-positioner/main/brand/icon.png" width="120" align="left" style="margin-right:16px"/>
 
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg?style=flat-square)](https://github.com/hacs/integration)

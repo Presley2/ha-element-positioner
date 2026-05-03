@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.6] - 2026-05-03
+
+### Changed
+- Added a HACS-friendly repository information text and clearer README opening summary
+- Replaced outdated manual installation notes in `info.md`
+
 ## [0.29.5] - 2026-05-03
 
 ### Fixed

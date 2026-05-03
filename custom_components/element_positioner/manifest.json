@@ -1,7 +1,7 @@
 {
   "domain": "element_positioner",
   "name": "Element Positioner",
-  "version": "0.29.5",
+  "version": "0.29.6",
   "documentation": "https://github.com/Presley2/ha-element-positioner",
   "issue_tracker": "https://github.com/Presley2/ha-element-positioner/issues",
   "codeowners": ["@Presley2"],
