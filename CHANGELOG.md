@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.4] - 2026-05-03
+
+### Fixed
+- Removed the experimental card inspector and HA edit hook test code
+- Editor now stays silent outside Lovelace dashboards and ignores expected `unknown config` responses
+
 ## [0.29.3] - 2026-05-02
 
 ### Changed

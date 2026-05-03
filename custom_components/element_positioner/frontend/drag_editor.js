@@ -1,4 +1,4 @@
-// HA Drag Editor 0.29.3 — YAML editor, Safari/iPad absolute overlay positioning
+// HA Drag Editor 0.29.4 — YAML editor, Safari/iPad absolute overlay positioning
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] 0.29.3 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29.4 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -336,6 +336,18 @@
   function getCurrentLoc() {
     var parts = window.location.pathname.split('/').filter(Boolean);
     return { dash: parts[0] || 'lovelace', view: parts[1] || null };
+  }
+
+  function isLovelacePath() {
+    var first = (window.location.pathname.split('/').filter(Boolean)[0] || '');
+    return first === 'lovelace' || first.indexOf('lovelace-') === 0;
+  }
+
+  function isIgnorableConfigError(err) {
+    var msg = String((err && (err.message || err.code || err.error)) || err || '').toLowerCase();
+    return msg.indexOf('unknown config') !== -1 ||
+           msg.indexOf('dashboard not found') !== -1 ||
+           msg.indexOf('not found') !== -1;
   }
 
   function getViewIdx(cfg, viewPath) {
@@ -1359,6 +1371,7 @@
     cleanup();
     var myGen = generation;
     state._currentGen = myGen;
+    if (!isLovelacePath()) return;
     var conn = getConn();
     if (!conn) { setBar(t('haConnNotFound')); return; }
 
@@ -1374,7 +1387,11 @@
       .then(function (cfg) {
         var viewIdx = getViewIdx(cfg, viewPath);
         var view = cfg.views[viewIdx];
-        if (!view) { setBar(t('viewNotFound')); return; }
+        var requestedView = viewPath == null ? null : String(viewPath);
+        var exactView = requestedView == null || String(viewIdx) === requestedView ||
+          (view && view.path === requestedView) ||
+          (view && view.title && view.title.toLowerCase() === requestedView.toLowerCase());
+        if (!view || !exactView) return;
 
         var picInfo = getPicElsCard(view);
         if (!picInfo) {
@@ -1395,7 +1412,10 @@
         }
         tryBuild(10);
       })
-      .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
+      .catch(function (err) {
+        if (isIgnorableConfigError(err)) return;
+        setBar('❌ ' + (err.message || JSON.stringify(err)));
+      });
   }
 
   function buildHandles(cfg, viewIdx, picInfo, wsPath) {
