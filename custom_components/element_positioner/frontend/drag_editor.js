@@ -1,4 +1,4 @@
-// HA Drag Editor 0.29.6 — YAML editor, Safari/iPad absolute overlay positioning
+// HA Drag Editor 0.29.7 — CodeMirror YAML editor, Safari/iPad absolute overlay positioning
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] 0.29.6 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29.7 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -166,6 +166,41 @@
     var text = (I18N[LANG] && I18N[LANG][key]) || I18N.en[key] || key;
     if (vars) Object.keys(vars).forEach(function (k) { text = text.replace('{' + k + '}', vars[k]); });
     return text;
+  }
+
+  function loadYamlEditorBundle() {
+    if (window.ElementPositionerYamlEditor) return Promise.resolve(window.ElementPositionerYamlEditor);
+    if (window.__elementPositionerYamlEditorLoading) return window.__elementPositionerYamlEditorLoading;
+    window.__elementPositionerYamlEditorLoading = new Promise(function (resolve, reject) {
+      var script = document.createElement('script');
+      script.src = '/element_positioner_static/yaml_editor.bundle.js?v=20260503v0297';
+      script.async = true;
+      script.onload = function () {
+        if (window.ElementPositionerYamlEditor) resolve(window.ElementPositionerYamlEditor);
+        else reject(new Error('YAML editor bundle loaded without editor API'));
+      };
+      script.onerror = function () { reject(new Error('YAML editor bundle failed to load')); };
+      document.head.appendChild(script);
+    });
+    return window.__elementPositionerYamlEditorLoading;
+  }
+
+  function getEntityCompletions() {
+    try {
+      var ha = document.querySelector('home-assistant');
+      var hass = ha && (ha.__data && ha.__data.hass || ha.hass);
+      if (!hass || !hass.states) return [];
+      return Object.keys(hass.states).sort().map(function (entityId) {
+        var entity = hass.states[entityId];
+        var attrs = entity && entity.attributes || {};
+        return {
+          entity_id: entityId,
+          name: attrs.friendly_name || ''
+        };
+      });
+    } catch (e) {
+      return [];
+    }
   }
 
   // Undo/Redo System
@@ -1146,10 +1181,27 @@
     header.appendChild(title);
     header.appendChild(modeLbl);
 
+    var editorHost = document.createElement('div');
+    editorHost.style.cssText = 'flex:1;min-height:0;width:100%;box-sizing:border-box;';
+
     var yamlArea = document.createElement('textarea');
     yamlArea.value = yaml;
-    yamlArea.style.cssText = 'color:#e0e0e0;font:11px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;width:100%;box-sizing:border-box;border:1px solid #FF5733;resize:none;outline:none;';
+    yamlArea.style.cssText = 'color:#e0e0e0;font:11px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;width:100%;height:100%;box-sizing:border-box;border:1px solid #FF5733;resize:none;outline:none;';
     yamlArea.spellcheck = false;
+    var yamlEditor = {
+      getValue: function () { return yamlArea.value; },
+      focus: function () { yamlArea.focus(); },
+      destroy: function () {}
+    };
+    editorHost.appendChild(yamlArea);
+
+    function getYamlValue() {
+      return yamlEditor && yamlEditor.getValue ? yamlEditor.getValue() : yamlArea.value;
+    }
+
+    function saveYamlFromEditor() {
+      saveBtn.click();
+    }
 
     var errMsg = document.createElement('div');
     errMsg.style.cssText = 'color:#ff4444;font:11px monospace;display:none;';
@@ -1161,7 +1213,7 @@
     copyBtn.style.cssText = 'background:#444;color:#ddd;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
     copyBtn.textContent = 'Copy YAML';
     copyBtn.addEventListener('click', function () {
-      navigator.clipboard.writeText(yamlArea.value).then(function () {
+      navigator.clipboard.writeText(getYamlValue()).then(function () {
         copyBtn.textContent = t('copied');
         setTimeout(function () { copyBtn.textContent = 'Copy YAML'; }, 2000);
       });
@@ -1176,7 +1228,7 @@
       updatePasteBtn();
       copyElBtn.textContent = t('inBuffer');
       setBar('📋 "' + elementBuffer._name + '" ' + t('copiedSwitchPaste'));
-      setTimeout(function () { copyElBtn.textContent = t('copyElement'); overlay.remove(); }, 1200);
+      setTimeout(function () { copyElBtn.textContent = t('copyElement'); if (yamlEditor) yamlEditor.destroy(); overlay.remove(); }, 1200);
     });
 
     var saveBtn = document.createElement('button');
@@ -1185,7 +1237,7 @@
     saveBtn.addEventListener('click', function () {
       errMsg.style.display = 'none';
       var edited;
-      try { edited = parseYaml(yamlArea.value); }
+      try { edited = parseYaml(getYamlValue()); }
       catch (e) {
         errMsg.textContent = t('yamlError') + e.message;
         errMsg.style.display = 'block';
@@ -1207,7 +1259,7 @@
         .then(function () {
           saveBtn.textContent = t('saved');
           setBar('✓ [' + elIdx + '] ' + name + ' gespeichert');
-          setTimeout(function () { overlay.remove(); }, 1200);
+          setTimeout(function () { if (yamlEditor) yamlEditor.destroy(); overlay.remove(); }, 1200);
         })
         .catch(function (err) {
           saveBtn.textContent = t('save');
@@ -1239,6 +1291,7 @@
         })
         .then(function () {
           setBar('🗑 [' + elIdx + '] ' + name + ' ' + t('deleted'));
+          if (yamlEditor) yamlEditor.destroy();
           overlay.remove();
           setTimeout(initEditor, 600);
         })
@@ -1254,11 +1307,11 @@
     var closeBtn = document.createElement('button');
     closeBtn.style.cssText = 'background:#333;color:#ccc;border:none;padding:7px 14px;border-radius:6px;font:bold 11px monospace;cursor:pointer;';
     closeBtn.textContent = t('close');
-    closeBtn.addEventListener('click', function () { overlay.remove(); });
+    closeBtn.addEventListener('click', function () { if (yamlEditor) yamlEditor.destroy(); overlay.remove(); });
 
-    overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
+    overlay.addEventListener('click', function (e) { if (e.target === overlay) { if (yamlEditor) yamlEditor.destroy(); overlay.remove(); } });
     document.addEventListener('keydown', function esc(e) {
-      if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); }
+      if (e.key === 'Escape') { if (yamlEditor) yamlEditor.destroy(); overlay.remove(); document.removeEventListener('keydown', esc); }
     });
 
     btns.appendChild(deleteBtn);
@@ -1267,11 +1320,30 @@
     btns.appendChild(saveBtn);
     btns.appendChild(closeBtn);
     box.appendChild(header);
-    box.appendChild(yamlArea);
+    box.appendChild(editorHost);
     box.appendChild(errMsg);
     box.appendChild(btns);
     overlay.appendChild(box);
     document.body.appendChild(overlay);
+
+    loadYamlEditorBundle()
+      .then(function (api) {
+        if (!document.body.contains(overlay) || !api || !api.create) return;
+        yamlArea.remove();
+        yamlEditor = api.create({
+          parent: editorHost,
+          doc: yaml,
+          entities: getEntityCompletions(),
+          onSave: saveYamlFromEditor
+        });
+        modeLbl.textContent = t('yamlEditable') + ' · CodeMirror';
+        setTimeout(function () { yamlEditor.focus(); }, 0);
+      })
+      .catch(function (err) {
+        console.warn('[HA-Drag-Editor] CodeMirror fallback to textarea:', err);
+        modeLbl.textContent = t('yamlEditable') + ' · textarea fallback';
+        yamlArea.focus();
+      });
   }
 
   // ── Format Painter ─────────────────────────────────────────────────────────

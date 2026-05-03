@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.29.7] - 2026-05-03
+
+### Added
+- Bundled CodeMirror 6 as the YAML editor for element popups
+- YAML editor now has line numbers, proper cursor navigation, Tab/Shift+Tab indentation, search and entity autocomplete
+- Textarea editor remains as a fallback if the CodeMirror bundle cannot be loaded
+
 ## [0.29.6] - 2026-05-03
 
 ### Changed

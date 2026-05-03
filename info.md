@@ -7,7 +7,8 @@ It lets you move, resize, copy and edit dashboard elements directly on your floo
 
 - Drag elements on a `picture-elements` floor plan and save the new `top` / `left` position back to Lovelace.
 - Fine tune positions with arrow keys in 0.1 percent steps.
-- Open a YAML editor for an element by double-clicking its crosshair.
+- Open a CodeMirror-based YAML editor for an element by double-clicking its crosshair.
+- Use line numbers, Tab/Shift+Tab indentation, editor search and Home Assistant entity suggestions.
 - Copy elements between dashboard tabs.
 - Use snap grid, undo/redo, multi-select, resize mode and format painter.
 - Works with German or English UI text based on Home Assistant/browser language.

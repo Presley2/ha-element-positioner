@@ -41,7 +41,7 @@ Positioniere Elemente direkt auf deinem Grundriss — ohne Code zu schreiben.
 | 🖱️ **Drag & Drop** | Elemente ziehen — Position wird sofort in HA gespeichert |
 | ⌨️ **Pfeiltasten** | Feinpositionierung 0,1 % pro Schritt (Klick → Fokus → ↑↓←→) |
 | 🔲 **Mehrfachauswahl** | Shift+Klick markiert mehrere Elemente für gemeinsames Verschieben |
-| 📝 **YAML Editor** | Doppelklick → Element-Config live bearbeiten |
+| 📝 **YAML Editor** | Doppelklick → Element-Config mit Zeilennummern, Einrückung und Entity-Vorschlägen bearbeiten |
 | 📋 **Element kopieren** | Elemente zwischen Dashboard-Tabs übertragen |
 | 🎨 **Format-Painter** | Style von einem Element auf ein anderes übertragen |
 | ↶ **Undo/Redo** | Bis zu 20 Schritte (Ctrl+Z / Ctrl+Y, Mac: ⌘) |
@@ -152,7 +152,7 @@ Position elements directly on your floor plan — no coding required.
 | 🖱️ **Drag & Drop** | Drag elements — position is saved to HA instantly |
 | ⌨️ **Arrow keys** | Fine positioning at 0.1 % per step (click → focus → ↑↓←→) |
 | 🔲 **Multi-select** | Shift+click selects multiple elements for group move |
-| 📝 **YAML Editor** | Double-click → edit element config live |
+| 📝 **YAML Editor** | Double-click → edit element config with line numbers, indentation and entity suggestions |
 | 📋 **Copy element** | Transfer elements between dashboard tabs |
 | 🎨 **Format Painter** | Copy style from one element to another |
 | ↶ **Undo/Redo** | Up to 20 steps (Ctrl+Z / Ctrl+Y, Mac: ⌘) |
