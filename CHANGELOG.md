@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.29.5] - 2026-05-03
+
+### Fixed
+- Unloading or removing the integration now also cleans up the sidebar panel
+- Lovelace resource cleanup now runs on unload and remove, so HACS uninstall leaves fewer frontend leftovers
+
 ## [0.29.4] - 2026-05-03
 
 ### Fixed

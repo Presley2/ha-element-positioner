@@ -3,7 +3,7 @@ import logging
 import uuid
 from pathlib import Path
 
-from homeassistant.components.frontend import async_register_built_in_panel
+from homeassistant.components.frontend import async_register_built_in_panel, async_remove_panel
 from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -88,12 +88,36 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    """Panel + Resource beim Entladen entfernen."""
+    await _async_cleanup_frontend(hass)
     return True
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
-    """Lovelace-Resource beim Löschen der Integration entfernen."""
-    url = f"{STATIC_PATH}/drag_editor.js"
+    """Frontend-Reste beim Löschen der Integration entfernen."""
+    await _async_cleanup_frontend(hass)
+
+
+async def _async_cleanup_frontend(hass: HomeAssistant) -> None:
+    """Panel und Lovelace-Resource bestmöglich entfernen."""
+    await _async_remove_panel(hass)
+    await _async_remove_lovelace_resource(hass, f"{STATIC_PATH}/drag_editor.js")
+
+
+async def _async_remove_panel(hass: HomeAssistant) -> None:
+    """Sidebar-Panel entfernen, falls es registriert ist."""
+    try:
+        if hass.data.get("frontend_panels", {}).get(PANEL_URL_PATH):
+            async_remove_panel(hass, PANEL_URL_PATH)
+            _LOGGER.info("Element Positioner Panel entfernt")
+    except AttributeError:
+        pass
+    except Exception as exc:
+        _LOGGER.debug("Panel-Cleanup fehlgeschlagen: %s", exc)
+
+
+async def _async_remove_lovelace_resource(hass: HomeAssistant, url: str) -> None:
+    """Lovelace-Resource beim Entladen oder Löschen der Integration entfernen."""
 
     # Versuch 1: LovelaceData.resources
     try:
@@ -114,8 +138,11 @@ async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
     try:
         store = Store(hass, 1, LOVELACE_RESOURCES_KEY)
         data = await store.async_load() or {"items": []}
-        data["items"] = [i for i in data.get("items", []) if url not in i.get("url", "")]
-        await store.async_save(data)
-        _LOGGER.info("Lovelace-Resource aus Storage entfernt: %s", url)
+        old_items = data.get("items", [])
+        new_items = [i for i in old_items if url not in i.get("url", "")]
+        if new_items != old_items:
+            data["items"] = new_items
+            await store.async_save(data)
+            _LOGGER.info("Lovelace-Resource aus Storage entfernt: %s", url)
     except Exception as exc:
         _LOGGER.warning("Cleanup fehlgeschlagen: %s", exc)
