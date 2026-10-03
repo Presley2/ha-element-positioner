@@ -1,4 +1,4 @@
-// HA Drag Editor 0.29.7 — CodeMirror YAML editor, Safari/iPad absolute overlay positioning
+// HA Drag Editor 0.29.8 — CodeMirror YAML editor, Safari/iPad absolute overlay positioning
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] 0.29.7 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29.8 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -173,7 +173,7 @@
     if (window.__elementPositionerYamlEditorLoading) return window.__elementPositionerYamlEditorLoading;
     window.__elementPositionerYamlEditorLoading = new Promise(function (resolve, reject) {
       var script = document.createElement('script');
-      script.src = '/element_positioner_static/yaml_editor.bundle.js?v=20260503v0297';
+      script.src = '/element_positioner_static/yaml_editor.bundle.js?v=0.29.8';
       script.async = true;
       script.onload = function () {
         if (window.ElementPositionerYamlEditor) resolve(window.ElementPositionerYamlEditor);
@@ -362,6 +362,33 @@
     return best;
   }
 
+  // Bei conditional-Elementen liegt die sichtbare Karte im Shadow-DOM des Wrappers.
+  // Für das Live-Resize wird daher die größte sichtbare Inhaltsfläche verwendet.
+  function getConditionalContentDom(domEl) {
+    if (!domEl) return null;
+    var best = domEl, bestArea = 0;
+    function walk(node) {
+      var parents = [node];
+      if (node.shadowRoot) parents.push(node.shadowRoot);
+      parents.forEach(function (parent) {
+        var children = parent.children || [];
+        for (var i = 0; i < children.length; i++) {
+          var child = children[i];
+          var cs = window.getComputedStyle(child);
+          var r = child.getBoundingClientRect();
+          if (cs && cs.display !== 'none' && cs.visibility !== 'hidden' &&
+              cs.opacity !== '0' && r.width > 2 && r.height > 2) {
+            var area = r.width * r.height;
+            if (area > bestArea) { best = child; bestArea = area; }
+          }
+          walk(child);
+        }
+      });
+    }
+    walk(domEl);
+    return best;
+  }
+
   function getConn() {
     var ha = document.querySelector('home-assistant');
     var hass = ha && (ha.__data && ha.__data.hass || ha.hass);
@@ -397,35 +424,54 @@
   }
 
   function getPicElsCard(view) {
-    function search(cards, path) {
-      if (!cards) return null;
-      for (var i = 0; i < cards.length; i++) {
-        var c = cards[i];
-        if (c.type === 'picture-elements') return { card: c, path: path.concat([i]) };
-        // Verschachtelt in cards-Array (grid-card, layout-card, vertical-stack, ...)
-        if (c.cards) {
-          var found = search(c.cards, path.concat([i, 'cards']));
-          if (found) return found;
-        }
-        // Verschachtelt in card-Singular (restriction-card, config-template-card, ...)
-        if (c.card && typeof c.card === 'object') {
-          var foundS = search([c.card], path.concat([i, 'card']));
-          if (foundS) return foundS;
-        }
+    function searchCard(card, path) {
+      if (card.type === 'picture-elements') return { card: card, path: path };
+      if (card.cards) {
+        var nested = search(card.cards, path.concat(['cards']));
+        if (nested) return nested;
+      }
+      if (card.card && typeof card.card === 'object') {
+        return searchCard(card.card, path.concat(['card']));
       }
       return null;
     }
-    if (!view || !view.cards) return null;
+    function search(cards, path) {
+      if (!cards) return null;
+      for (var i = 0; i < cards.length; i++) {
+        var found = searchCard(cards[i], path.concat([i]));
+        if (found) return found;
+      }
+      return null;
+    }
+    if (!view) return null;
+    if (view.sections) {
+      for (var i = 0; i < view.sections.length; i++) {
+        var section = view.sections[i];
+        var visible = !section.visibility || section.visibility.every(function (condition) {
+          return condition.condition !== 'screen' || !condition.media_query ||
+            !window.matchMedia || window.matchMedia(condition.media_query).matches;
+        });
+        if (!visible) continue;
+        var found = search(section.cards, ['sections', i, 'cards']);
+        if (found) return found;
+      }
+    }
     return search(view.cards, []);
   }
 
   function getCardByPath(cfg, viewIdx, path) {
     // path kann gemischte Array-Indizes und 'cards'/'card'-Keys enthalten
-    var node = cfg.views[viewIdx].cards;
+    var node = cfg.views[viewIdx];
+    if (path[0] !== 'sections') node = node.cards;
     for (var i = 0; i < path.length; i++) {
       node = node[path[i]];
     }
     return node;
+  }
+
+  function visibleCardPathChanged(view, activePath) {
+    var visible = getPicElsCard(view);
+    return (visible ? visible.path.join('/') : null) !== activePath;
   }
 
   // Rekursiv tiefstes style-Objekt mit top/left finden (conditional-Verschachtelung)
@@ -794,20 +840,21 @@
       state.barResizeBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" style="vertical-align:middle"><polyline points="1,5 1,1 5,1" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="8,1 12,1 12,5" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="12,8 12,12 8,12" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/><polyline points="5,12 1,12 1,8" stroke="white" stroke-width="1.5" stroke-linejoin="round" fill="none"/></svg>';
       state.barResizeBtn.title = t('resizeTitle');
       state.barResizeBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
-      state.barResizeBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
+      state.barResizeBtn.addEventListener('mouseout', function () { this.style.background = resizeMode ? '#ff9800' : 'rgba(255,255,255,0.15)'; });
       state.barResizeBtn.addEventListener('click', toggleResizeMode);
       state.bar.appendChild(state.barResizeBtn);
+
 
       state.barSnapBtn = document.createElement('button');
       state.barSnapBtn.style.cssText = 'background:rgba(255,255,255,0.15);color:white;border:1px solid rgba(255,255,255,0.3);padding:4px 8px;border-radius:4px;font:bold 11px monospace;cursor:pointer;margin-left:4px;transition:all 0.2s;';
       state.barSnapBtn.title = t('snapTitle');
       state.barSnapBtn.addEventListener('mouseover', function () { this.style.background = 'rgba(255,255,255,0.25)'; });
-      state.barSnapBtn.addEventListener('mouseout', function () { this.style.background = 'rgba(255,255,255,0.15)'; });
+      state.barSnapBtn.addEventListener('mouseout', function () { this.style.background = snapGrid === 'off' ? 'rgba(255,255,255,0.15)' : '#ff9800'; });
       state.barSnapBtn.addEventListener('click', toggleSnapGrid);
       state.bar.appendChild(state.barSnapBtn);
     }
 
-    state.barResizeBtn.style.background = resizeMode ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.15)';
+    state.barResizeBtn.style.background = resizeMode ? '#ff9800' : 'rgba(255,255,255,0.15)';
 
     state.barUndoBtn.disabled = undoStack.length === 0;
     state.barUndoBtn.style.opacity = undoStack.length === 0 ? '0.4' : '1';
@@ -815,7 +862,7 @@
     state.barRedoBtn.style.opacity = redoStack.length === 0 ? '0.4' : '1';
 
     var snapLbl = snapGrid === 'off' ? 'OFF' : snapGrid + '%';
-    state.barSnapBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="vertical-align:middle;margin-right:3px"><line x1="4" y1="0" x2="4" y2="12" stroke="white" stroke-width="1"/><line x1="8" y1="0" x2="8" y2="12" stroke="white" stroke-width="1"/><line x1="0" y1="4" x2="12" y2="4" stroke="white" stroke-width="1"/><line x1="0" y1="8" x2="12" y2="8" stroke="white" stroke-width="1"/></svg>' + snapLbl;
+    state.barSnapBtn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="vertical-align:middle;margin-right:3px"><line x1="4" y1="0" x2="4" y2="12" stroke="white" stroke-width="1"/><line x1="8" y1="0" x2="8" y2="12" stroke="white" stroke-width="1"/><line x1="0" y1="4" x2="12" y2="4" stroke="white" stroke-width="1"/><line x1="0" y1="8" x2="12" y2="8" stroke="white" stroke-width="1"/></svg>' + snapLbl; state.barSnapBtn.style.background = snapGrid === 'off' ? 'rgba(255,255,255,0.15)' : '#ff9800';
 
     var txt = m;
     if (formatBuffer) txt = '🎨 ' + txt;
@@ -902,6 +949,8 @@
   // ── Resize-Box ─────────────────────────────────────────────────────────────
 
   function hideResizeBox() {
+    if (state._resizeCleanup) { state._resizeCleanup(); state._resizeCleanup = null; }
+    state._resizeBoxReposition = null;
     if (state.resizeBox) { state.resizeBox.remove(); state.resizeBox = null; }
     resizeActive = null;
   }
@@ -928,37 +977,48 @@
 
   function showResizeBox(domEl, elIdx, picInfo, viewIdx, cardPath, wsPath, cfg) {
     hideResizeBox();
+    var resizeActive = null;
+    var resizeChanged = false;
     var root = getActiveRoot(); if (!root) return;
     var elCfg = picInfo.card.elements[elIdx];
     var styleObj = unwrapElStyle(elCfg);
     if (!styleObj) { setBar(t('noStyle')); return; }
 
-    var topPct = parseFloat(styleObj.top);
-    var leftPct = parseFloat(styleObj.left);
-    // Aktueller scale aus transform; wenn keiner gesetzt → 1
+    var topPct = readSize(styleObj, 'top', 50);
+    var leftPct = readSize(styleObj, 'left', 50);
     var scale = parseScaleFromTransform(styleObj.transform);
-    // Snapshot der initialen DOM-Größe bei scale=1 (für Box-Anzeige)
-    var er0 = domEl.getBoundingClientRect();
-    var baseW = er0.width / scale;
-    var baseH = er0.height / scale;
+    var rootRect = root.getBoundingClientRect();
+    if (!Number.isFinite(rootRect.width) || !Number.isFinite(rootRect.height) || rootRect.width <= 0 || rootRect.height <= 0) { setBar('ERR: Grundriss hat keine messbare Größe'); return; }
+    if (!Number.isFinite(scale) || scale <= 0) scale = 1;
+    var er0 = domEl && domEl.getBoundingClientRect();
+    if (er0 && (!Number.isFinite(er0.width) || !Number.isFinite(er0.height) || er0.width <= 0 || er0.height <= 0)) er0 = null;
+    var baseW = er0 ? er0.width / scale : rootRect.width * readSize(styleObj, 'width', 14) / 100;
+    var baseH = er0 ? er0.height / scale : rootRect.height * readSize(styleObj, 'height', 15) / 100;
+    var boxW = baseW * scale, boxH = baseH * scale;
+    var boxLeft = leftPct, boxTop = topPct;
+    scale = 1;
 
     var box = document.createElement('div');
     box.style.cssText = 'position:absolute;z-index:99998;border:2px dashed #FFD700;box-sizing:border-box;pointer-events:none;box-shadow:0 0 0 1px rgba(0,0,0,0.5);';
     document.documentElement.appendChild(box);
     state.resizeBox = box;
 
+    function refreshResizeRoot() {
+      if (!root || !root.isConnected) root = getActiveRoot();
+      if (!root) return false;
+      rootRect = root.getBoundingClientRect();
+      return Number.isFinite(rootRect.width) && Number.isFinite(rootRect.height) && rootRect.width > 0 && rootRect.height > 0;
+    }
     function placeBox() {
-      var w = baseW * scale;
-      var h = baseH * scale;
-      var er = domEl.getBoundingClientRect();
-      var cx = er.left + er.width / 2;
-      var cy = er.top  + er.height / 2;
+      if (!refreshResizeRoot()) return;
+      var w = boxW, h = boxH;
+      var cx = rootRect.left + boxLeft / 100 * rootRect.width;
+      var cy = rootRect.top + boxTop / 100 * rootRect.height;
       var sx = window.pageXOffset || document.documentElement.scrollLeft || 0;
-      var sy = window.pageYOffset || document.documentElement.scrollTop  || 0;
+      var sy = window.pageYOffset || document.documentElement.scrollTop || 0;
       box.style.left = (sx + cx - w / 2) + 'px';
-      box.style.top  = (sy + cy - h / 2) + 'px';
-      box.style.width  = w + 'px';
-      box.style.height = h + 'px';
+      box.style.top = (sy + cy - h / 2) + 'px';
+      box.style.width = w + 'px'; box.style.height = h + 'px';
     }
     placeBox();
 
@@ -978,9 +1038,8 @@
       grip.style.cssText = 'position:absolute;width:12px;height:12px;background:#FFD700;border:2px solid #000;border-radius:2px;left:' + hh.x + ';top:' + hh.y + ';transform:translate(-50%,-50%);cursor:' + hh.cur + ';pointer-events:all;';
       grip.addEventListener('mousedown', function (e) {
         e.preventDefault(); e.stopPropagation();
-        resizeActive = {
-          id: hh.id, sx: e.clientX, sy: e.clientY, sScale: scale
-        };
+        resizeActive = { id: hh.id, sx: e.clientX, sy: e.clientY,
+          w: boxW, h: boxH, left: boxLeft, top: boxTop };
       });
       box.appendChild(grip);
     });
@@ -998,62 +1057,75 @@
     box.appendChild(label);
 
     function updateLabel() {
-      label.textContent = 'Scale: ' + (scale * 100).toFixed(0) + '%  (' + Math.round(baseW * scale) + '×' + Math.round(baseH * scale) + 'px)';
+      label.textContent = 'Size: ' + Math.round(boxW) + 'x' + Math.round(boxH) + 'px';
     }
     updateLabel();
 
-    // Resize-Mausevents — proportionale Skalierung via transform:scale
+    // Independent edge and corner resize.
+    function pct(value, total) {
+      return (Math.round((value / total * 100) * 1000) / 1000) + '%';
+    }
     function onMove(e) {
-      if (!resizeActive) return;
-      var dx = e.clientX - resizeActive.sx;
-      var dy = e.clientY - resizeActive.sy;
-      var sign = 1;
-      var id = resizeActive.id;
-      // Diagonal-Skalierung anhand der Größe-Veränderung (positiv = größer)
-      // Eckhandles: kombiniertes dx+dy. Kantenhandles: nur die relevante Achse.
-      var delta = 0;
-      if (id === 'se') delta = (dx + dy) / 2;
-      else if (id === 'nw') delta = -(dx + dy) / 2;
-      else if (id === 'ne') delta = (dx - dy) / 2;
-      else if (id === 'sw') delta = (-dx + dy) / 2;
-      else if (id === 'e') delta = dx;
-      else if (id === 'w') delta = -dx;
-      else if (id === 's') delta = dy;
-      else if (id === 'n') delta = -dy;
-      // Skalierungs-Sensitivität: 200px Bewegung = ×2
-      var newScale = resizeActive.sScale * (1 + delta / 200);
-      newScale = Math.max(0.05, Math.min(10, newScale));
-      // Snap auf die aktuell gewählte Snap-Stufe (in % Schritten); für Scale halbiert
-      if (snapGrid !== 'off') {
-        var step = parseFloat(snapGrid) / 100;
-        if (step > 0) newScale = Math.round(newScale / step) * step;
+      if (!resizeActive || state.resizeBox !== box) return;
+      if (!refreshResizeRoot() || !Number.isFinite(e.clientX) || !Number.isFinite(e.clientY)) return;
+      var id = resizeActive.id, min = 8;
+      var l = resizeActive.left / 100 * rootRect.width - resizeActive.w / 2;
+      var r = l + resizeActive.w;
+      var top = resizeActive.top / 100 * rootRect.height - resizeActive.h / 2;
+      var bottom = top + resizeActive.h;
+      if (id.indexOf('w') !== -1) l = Math.min(r - min, Math.max(0, e.clientX - rootRect.left));
+      if (id.indexOf('e') !== -1) r = Math.max(l + min, Math.min(rootRect.width, e.clientX - rootRect.left));
+      if (id.indexOf('n') !== -1) top = Math.min(bottom - min, Math.max(0, e.clientY - rootRect.top));
+      if (id.indexOf('s') !== -1) bottom = Math.max(top + min, Math.min(rootRect.height, e.clientY - rootRect.top));
+      if (![l, r, top, bottom, rootRect.width, rootRect.height].every(Number.isFinite)) return;
+      boxW = r - l; boxH = bottom - top;
+      resizeChanged = true;
+      boxLeft = ((l + r) / 2) / rootRect.width * 100;
+      boxTop = ((top + bottom) / 2) / rootRect.height * 100;
+      styleObj.width = pct(boxW, rootRect.width);
+      styleObj.height = pct(boxH, rootRect.height);
+      styleObj.left = boxLeft.toFixed(3) + '%';
+      styleObj.top = boxTop.toFixed(3) + '%';
+      styleObj.transform = setScaleInTransform(styleObj.transform, 1);
+      if (domEl) {
+        domEl.style.width = styleObj.width; domEl.style.height = styleObj.height;
+        domEl.style.left = styleObj.left; domEl.style.top = styleObj.top;
+        domEl.style.transform = styleObj.transform;
       }
-      scale = newScale;
-      // Live im DOM anwenden
-      domEl.style.transform = setScaleInTransform(domEl.style.transform || styleObj.transform, scale);
-      placeBox();
-      updateLabel();
+      placeBox(); updateLabel();
     }
     function onUp() {
       if (!resizeActive) return;
       resizeActive = null;
-      // In Config speichern
+      if (!resizeChanged || state.resizeBox !== box) return;
+      resizeChanged = false;
+      if (![boxW, boxH, boxLeft, boxTop, rootRect.width, rootRect.height].every(Number.isFinite) || boxW <= 0 || boxH <= 0 || rootRect.width <= 0 || rootRect.height <= 0) { setBar('ERR: Ungültige Größe — nicht gespeichert'); return; }
+      var savedSize = {width: pct(boxW, rootRect.width), height: pct(boxH, rootRect.height), left: boxLeft.toFixed(3) + '%', top: boxTop.toFixed(3) + '%'};
       var liveConn = getConn();
-      if (!liveConn) { setBar('❌ ' + t('connectionLost')); return; }
-      setBar(t('savingScale'));
+      if (!liveConn) { setBar('ERR ' + t('connectionLost')); return; }
+      setBar('Saving size...');
       liveConn.sendMessagePromise({ type: 'lovelace/config', url_path: wsPath, force: true })
         .then(function (freshCfg) {
-          var freshCard = getCardByPath(freshCfg, viewIdx, cardPath);
-          var freshEl = freshCard.elements[elIdx];
-          var s = unwrapElStyle(freshEl);
-          if (!s) throw new Error(t('noStyleShort'));
-          if (typeof scale !== 'number' || !isFinite(scale)) scale = 1;
-          s.transform = setScaleInTransform(s.transform, scale);
+          var freshStyle = unwrapElStyle(getCardByPath(freshCfg, viewIdx, cardPath).elements[elIdx]);
+          if (!freshStyle) throw new Error(t('noStyleShort'));
+          freshStyle.width = savedSize.width;
+          freshStyle.height = savedSize.height;
+          freshStyle.left = savedSize.left;
+          freshStyle.top = savedSize.top;
+          freshStyle.transform = setScaleInTransform(freshStyle.transform, 1);
           return liveConn.sendMessagePromise({ type: 'lovelace/config/save', url_path: wsPath, config: freshCfg });
         })
-        .then(function () { setBar(t('scaleSaved') + (scale * 100).toFixed(0) + '%'); })
-        .catch(function (err) { setBar('❌ ' + (err.message || JSON.stringify(err))); });
+        .then(function () { setBar('Size saved: ' + Math.round(boxW) + 'x' + Math.round(boxH) + 'px'); })
+        .catch(function (err) { setBar('ERR ' + (err.message || JSON.stringify(err))); });
     }
+    function onOutsidePointerDown(e) {
+      var path = e.composedPath ? e.composedPath() : [e.target];
+      if (path.indexOf(box) !== -1 || path.indexOf(state.bar) !== -1) return;
+      if (box.contains(e.target) || (state.bar && state.bar.contains(e.target))) return;
+      hideResizeBox();
+      setBar(t('resizeClosed'));
+    }
+    document.addEventListener('pointerdown', onOutsidePointerDown, true);
     document.addEventListener('mousemove', onMove, true);
     document.addEventListener('mouseup', onUp, true);
 
@@ -1061,6 +1133,14 @@
     state._resizeBoxReposition = placeBox;
     window.addEventListener('resize', placeBox);
     window.addEventListener('scroll', placeBox, true);
+    state._resizeCleanup = function () {
+      resizeActive = null;
+      document.removeEventListener('pointerdown', onOutsidePointerDown, true);
+      document.removeEventListener('mousemove', onMove, true);
+      document.removeEventListener('mouseup', onUp, true);
+      window.removeEventListener('resize', placeBox);
+      window.removeEventListener('scroll', placeBox, true);
+    };
 
     setBar(t('resizeBoxHint'));
   }
@@ -1165,7 +1245,7 @@
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:9999999;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;';
 
     var box = document.createElement('div');
-    box.style.cssText = 'background:#1a1a1a;border-radius:12px;padding:20px;width:min(680px,94vw);height:80vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 6px 30px rgba(0,0,0,0.9);resize:both;overflow:hidden;min-height:300px;min-width:320px;';
+    box.style.cssText = 'background:#1a1a1a;border-radius:12px;padding:20px;width:min(960px,94vw);height:86vh;display:flex;flex-direction:column;gap:12px;box-shadow:0 6px 30px rgba(0,0,0,0.9);resize:both;overflow:hidden;min-height:300px;min-width:320px;';
 
     var header = document.createElement('div');
     header.style.cssText = 'display:flex;align-items:center;justify-content:space-between;gap:12px;';
@@ -1180,13 +1260,25 @@
 
     header.appendChild(title);
     header.appendChild(modeLbl);
+    var fullBtn = document.createElement('button');
+    fullBtn.textContent = 'Vollbild';
+    fullBtn.style.cssText = 'background:#333;color:white;border:1px solid #666;border-radius:5px;padding:6px 10px;cursor:pointer';
+    var isFull = false;
+    fullBtn.addEventListener('click', function () {
+      isFull = !isFull;
+      box.style.width = isFull ? 'calc(100vw - 24px)' : 'min(960px,94vw)';
+      box.style.height = isFull ? 'calc(100vh - 24px)' : '86vh';
+      box.style.boxSizing = 'border-box';
+      fullBtn.textContent = isFull ? 'Fenster' : 'Vollbild';
+    });
+    header.appendChild(fullBtn);
 
     var editorHost = document.createElement('div');
     editorHost.style.cssText = 'flex:1;min-height:0;width:100%;box-sizing:border-box;';
 
     var yamlArea = document.createElement('textarea');
     yamlArea.value = yaml;
-    yamlArea.style.cssText = 'color:#e0e0e0;font:11px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;width:100%;height:100%;box-sizing:border-box;border:1px solid #FF5733;resize:none;outline:none;';
+    yamlArea.style.cssText = 'color:#e0e0e0;font:15px/1.5 monospace;overflow:auto;flex:1;margin:0;white-space:pre;background:#111;padding:14px;border-radius:8px;width:100%;height:100%;box-sizing:border-box;border:1px solid #FF5733;resize:none;outline:none;';
     yamlArea.spellcheck = false;
     var yamlEditor = {
       getValue: function () { return yamlArea.value; },
@@ -1237,6 +1329,8 @@
     saveBtn.addEventListener('click', function () {
       errMsg.style.display = 'none';
       var edited;
+      var yamlErrors = yamlEditor.validate ? yamlEditor.validate() : [];
+      if (yamlErrors.length) { errMsg.textContent = yamlErrors[0].message; errMsg.style.display = 'block'; return; }
       try { edited = parseYaml(getYamlValue()); }
       catch (e) {
         errMsg.textContent = t('yamlError') + e.message;
@@ -1315,12 +1409,21 @@
     });
 
     btns.appendChild(deleteBtn);
+    var searchBtn = document.createElement('button');
+    searchBtn.textContent = 'Suchen / Ersetzen';
+    searchBtn.style.cssText = copyBtn.style.cssText;
+    searchBtn.addEventListener('click', function () { if (yamlEditor.search) yamlEditor.search(); });
+    btns.appendChild(searchBtn);
     btns.appendChild(copyBtn);
     btns.appendChild(copyElBtn);
     btns.appendChild(saveBtn);
     btns.appendChild(closeBtn);
     box.appendChild(header);
     box.appendChild(editorHost);
+    var positionLabel = document.createElement('div');
+    positionLabel.style.cssText = 'color:#bbb;font:12px monospace';
+    positionLabel.textContent = 'Zeile 1 · Spalte 1 · Tab: Einrücken · ⌘/Ctrl+F: Suchen';
+    box.appendChild(positionLabel);
     box.appendChild(errMsg);
     box.appendChild(btns);
     overlay.appendChild(box);
@@ -1334,7 +1437,8 @@
           parent: editorHost,
           doc: yaml,
           entities: getEntityCompletions(),
-          onSave: saveYamlFromEditor
+          onSave: saveYamlFromEditor,
+          onPosition: function (line, column) { positionLabel.textContent = 'Zeile ' + line + ' · Spalte ' + column + ' · Tab: Einrücken · ⌘/Ctrl+F: Suchen'; }
         });
         modeLbl.textContent = t('yamlEditable') + ' · CodeMirror';
         setTimeout(function () { yamlEditor.focus(); }, 0);
@@ -1409,6 +1513,9 @@
 
   function cleanup() {
     generation++;
+    if (state._cardSwitchTimer) { clearTimeout(state._cardSwitchTimer); state._cardSwitchTimer = null; }
+    state._activeView = null;
+    state._activeCardPath = null;
     state.placeHandlers = [];
     if (state.layer) { state.layer.remove(); state.layer = null; }
     if (state._barInterval) { clearInterval(state._barInterval); state._barInterval = null; }
@@ -1480,7 +1587,9 @@
           }
           if (!rect) { setBar(t('rootNotFoundAfterWait')); return; }
           if (state.layer) return;  // schon gebaut
-          buildHandles(cfg, viewIdx, picInfo, wsPath);
+          var currentPicInfo = getPicElsCard(view);
+          if (!currentPicInfo) { setBar(t('noPictureInView')); return; }
+          buildHandles(cfg, viewIdx, currentPicInfo, wsPath);
         }
         tryBuild(10);
       })
@@ -1492,6 +1601,8 @@
 
   function buildHandles(cfg, viewIdx, picInfo, wsPath) {
     var cardPath = picInfo.path;
+    state._activeView = cfg.views[viewIdx];
+    state._activeCardPath = cardPath.join('/');
     var elements = picInfo.card.elements;
     var seenHandleKeys = {};
 
@@ -1528,7 +1639,9 @@
       var stackOffsetPx = stackIdx * 14;
 
       var isConditional = elCfg.type === 'conditional';
-      var mappedDom = findDomElByPos(getActiveRoot(), tPct, lPct, isConditional ? { maxDistPct: 3 } : {});
+       // Conditional elements may be hidden; never bind their handle to a nearby DOM element.
+      // Their own YAML coordinates are the only reliable position.
+      var mappedDom = isConditional ? null : findDomElByPos(getActiveRoot(), tPct, lPct, {});
 
       var h = makeCrosshair(name);
       layer.appendChild(h);
@@ -1605,8 +1718,13 @@
         if (resizeMode) {
           var rRoot = getActiveRoot();
           if (!rRoot) { setBar(t('noRoot')); return; }
-          var rDom = h._targetDom || findDomElByPos(rRoot, tPct, lPct);
-          if (!rDom) { setBar(t('domNotFound')); return; }
+          // Conditional-Elemente können unsichtbar sein. Eine Positionssuche würde
+          // dann leicht einen benachbarten Button erwischen. Daher ihre Box immer
+          // aus dem eigenen Style erzeugen; normale Elemente nutzen ihr DOM-Target.
+          var rDom = null;
+          if (elCfg.type !== 'conditional') {
+            rDom = h._targetDom || findDomElByPos(rRoot, tPct, lPct);
+          }
           showResizeBox(rDom, idx, picInfo, viewIdx, cardPath, wsPath, cfg);
           return;
         }
@@ -1818,6 +1936,9 @@
   // Keyboard Shortcuts: Undo/Redo, Escape, Pfeiltasten
   document.addEventListener('keydown', function (e) {
     if (!state.enabled) return;
+    if (document.getElementById('ha-drag-yaml-popup')) return;
+    var keyPath = e.composedPath ? e.composedPath() : [e.target];
+    if (keyPath.some(function (node) { return node && (node.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(node.tagName || '')); })) return;
     if (e.key === 'Escape') {
       if (Object.keys(selectedElements).length > 0) {
         Object.keys(selectedElements).forEach(function (idx) {
@@ -1858,8 +1979,17 @@
     else if (isRedo) { e.preventDefault(); performRedo(currentWsPath, function () { initEditor(); }); }
   }, true);
 
-  // Single window-resize + scroll Handler — repositioniert alle Kreuze und Paste-Buttons
+  // Bei Seitenverhältniswechsel die Kreuze für die nun sichtbare Section neu aufbauen.
   function repositionAll() {
+    if (state.enabled && state._activeView && !globalActive &&
+        visibleCardPathChanged(state._activeView, state._activeCardPath)) {
+      if (state._cardSwitchTimer) clearTimeout(state._cardSwitchTimer);
+      state._cardSwitchTimer = setTimeout(function () {
+        state._cardSwitchTimer = null;
+        if (state.enabled && !globalActive && !document.getElementById('ha-drag-yaml-popup')) initEditor();
+      }, 250);
+      return;
+    }
     if (state.placeHandlers) {
       for (var i = 0; i < state.placeHandlers.length; i++) {
         try { state.placeHandlers[i](); } catch (e) {}

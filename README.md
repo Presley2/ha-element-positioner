@@ -41,12 +41,12 @@ Positioniere Elemente direkt auf deinem Grundriss — ohne Code zu schreiben.
 | 🖱️ **Drag & Drop** | Elemente ziehen — Position wird sofort in HA gespeichert |
 | ⌨️ **Pfeiltasten** | Feinpositionierung 0,1 % pro Schritt (Klick → Fokus → ↑↓←→) |
 | 🔲 **Mehrfachauswahl** | Shift+Klick markiert mehrere Elemente für gemeinsames Verschieben |
-| 📝 **YAML Editor** | Doppelklick → Element-Config mit Zeilennummern, Einrückung und Entity-Vorschlägen bearbeiten |
+| 📝 **YAML Editor** | Doppelklick → YAML mit Zeilennummern, Suche, Vollbild, Syntaxprüfung und Entity-Vorschlägen bearbeiten |
 | 📋 **Element kopieren** | Elemente zwischen Dashboard-Tabs übertragen |
 | 🎨 **Format-Painter** | Style von einem Element auf ein anderes übertragen |
 | ↶ **Undo/Redo** | Bis zu 20 Schritte (Ctrl+Z / Ctrl+Y, Mac: ⌘) |
 | ⊞ **Snap-Grid** | OFF / 1 % / 3 % / 5 % — Drag und Pfeiltasten rasten ein |
-| ⤡ **Resize-Modus** | Elemente skalieren via `transform: scale()` |
+| ⤡ **Resize-Modus** | Breite und Höhe über Kanten und Ecken ändern, auch bei Conditional-Elementen |
 | 🔍 **Suche** | Elemente nach Name filtern |
 | 🗑️ **Löschen** | Element entfernen (2× bestätigen) |
 | 🌐 **Zweisprachig** | UI automatisch auf Deutsch oder Englisch (via Browser-Sprache) |
@@ -107,7 +107,7 @@ Alle Shortcuts und Funktionen sind direkt im Sidebar-Panel dokumentiert.
 | `grid` mit picture-elements | ✅ |
 | `sidebar`-Views | ✅ |
 | `panel`-Views | ✅ |
-| `sections`-Views | — (kein picture-elements) |
+| `sections`-Views mit `picture-elements` | ✅ (auch mit Bildschirm-Sichtbarkeit) |
 
 **Browser:** Chrome, Firefox, Safari, Edge, iPad Safari (alle aktuellen Versionen)
 
@@ -152,12 +152,12 @@ Position elements directly on your floor plan — no coding required.
 | 🖱️ **Drag & Drop** | Drag elements — position is saved to HA instantly |
 | ⌨️ **Arrow keys** | Fine positioning at 0.1 % per step (click → focus → ↑↓←→) |
 | 🔲 **Multi-select** | Shift+click selects multiple elements for group move |
-| 📝 **YAML Editor** | Double-click → edit element config with line numbers, indentation and entity suggestions |
+| 📝 **YAML Editor** | Double-click → edit YAML with line numbers, search, fullscreen, syntax checks and entity suggestions |
 | 📋 **Copy element** | Transfer elements between dashboard tabs |
 | 🎨 **Format Painter** | Copy style from one element to another |
 | ↶ **Undo/Redo** | Up to 20 steps (Ctrl+Z / Ctrl+Y, Mac: ⌘) |
 | ⊞ **Snap Grid** | OFF / 1 % / 3 % / 5 % — drag and arrow keys snap to grid |
-| ⤡ **Resize mode** | Scale elements via `transform: scale()` |
+| ⤡ **Resize mode** | Resize width and height using edge and corner handles, including conditional elements |
 | 🔍 **Search** | Filter elements by name |
 | 🗑️ **Delete** | Remove element (confirm twice) |
 | 🌐 **Bilingual** | UI automatically in German or English (via browser language) |
@@ -218,7 +218,7 @@ All shortcuts and features are documented directly in the sidebar panel.
 | `grid` with picture-elements | ✅ |
 | `sidebar` views | ✅ |
 | `panel` views | ✅ |
-| `sections` views | — (no picture-elements) |
+| `sections` views with `picture-elements` | ✅ (including screen visibility) |
 
 **Browsers:** Chrome, Firefox, Safari, Edge, iPad Safari (all current versions)
 

@@ -21978,6 +21978,11 @@
   function maybeEnableLint(state, effects) {
     return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of(lintExtensions));
   }
+  function setDiagnostics(state, diagnostics) {
+    return {
+      effects: maybeEnableLint(state, [setDiagnosticsEffect.of(diagnostics)])
+    };
+  }
   var setDiagnosticsEffect = /* @__PURE__ */ StateEffect.define();
   var togglePanel2 = /* @__PURE__ */ StateEffect.define();
   var movePanelSelection = /* @__PURE__ */ StateEffect.define();
@@ -22075,6 +22080,65 @@
     { key: "Mod-Shift-m", run: openLintPanel, preventDefault: true },
     { key: "F8", run: nextDiagnostic }
   ];
+  var lintPlugin = /* @__PURE__ */ ViewPlugin.fromClass(class {
+    constructor(view) {
+      this.view = view;
+      this.timeout = -1;
+      this.set = true;
+      let { delay } = view.state.facet(lintConfig);
+      this.lintTime = Date.now() + delay;
+      this.run = this.run.bind(this);
+      this.timeout = setTimeout(this.run, delay);
+    }
+    run() {
+      clearTimeout(this.timeout);
+      let now = Date.now();
+      if (now < this.lintTime - 10) {
+        this.timeout = setTimeout(this.run, this.lintTime - now);
+      } else {
+        this.set = false;
+        let { state } = this.view, { sources } = state.facet(lintConfig);
+        if (sources.length)
+          batchResults(sources.map((s) => Promise.resolve(s(this.view))), (annotations) => {
+            if (this.view.state.doc == state.doc)
+              this.view.dispatch(setDiagnostics(this.view.state, annotations.reduce((a, b) => a.concat(b))));
+          }, (error) => {
+            logException(this.view.state, error);
+          });
+      }
+    }
+    update(update) {
+      let config2 = update.state.facet(lintConfig);
+      if (update.docChanged || config2 != update.startState.facet(lintConfig) || config2.needsRefresh && config2.needsRefresh(update)) {
+        this.lintTime = Date.now() + config2.delay;
+        if (!this.set) {
+          this.set = true;
+          this.timeout = setTimeout(this.run, config2.delay);
+        }
+      }
+    }
+    force() {
+      if (this.set) {
+        this.lintTime = Date.now();
+        this.run();
+      }
+    }
+    destroy() {
+      clearTimeout(this.timeout);
+    }
+  });
+  function batchResults(promises, sink, error) {
+    let collected = [], timeout = -1;
+    for (let p of promises)
+      p.then((value) => {
+        collected.push(value);
+        clearTimeout(timeout);
+        if (collected.length == promises.length)
+          sink(collected);
+        else
+          timeout = setTimeout(() => sink(collected), 200);
+      }, error);
+  }
   var lintConfig = /* @__PURE__ */ Facet.define({
     combine(input) {
       return {
@@ -22098,6 +22162,13 @@
   });
   function combineFilter(a, b) {
     return !a ? b : !b ? a : (d, s) => b(a(d, s), s);
+  }
+  function linter(source, config2 = {}) {
+    return [
+      lintConfig.of({ source, config: config2 }),
+      lintPlugin,
+      lintExtensions
+    ];
   }
   function assignKeys(actions) {
     let assigned = [];
@@ -24711,11 +24782,12 @@
         backgroundColor: "#111",
         border: "1px solid #FF5733",
         borderRadius: "8px",
-        fontSize: "12px"
+        fontSize: "15px"
       },
       ".cm-scroller": {
         fontFamily: "Menlo, Consolas, Monaco, monospace",
-        lineHeight: "1.5"
+        lineHeight: "1.5",
+        overflow: "auto"
       },
       ".cm-content": {
         caretColor: "#FF5733",
@@ -24748,14 +24820,65 @@
       ".cm-tooltip-autocomplete ul li[aria-selected]": {
         backgroundColor: "#FF5733",
         color: "#fff"
+      },
+      ".tok-keyword, .tok-atom, .tok-bool, .tok-labelName": {
+        color: "#ffb86c !important"
+      },
+      ".tok-literal, .tok-number": {
+        color: "#f1fa8c !important"
+      },
+      ".tok-string, .tok-string2, .tok-url": {
+        color: "#8be9a8 !important"
+      },
+      ".tok-variableName, .tok-variableName2, .tok-propertyName, .tok-definition, .tok-typeName, .tok-namespace": {
+        color: "#f8f8f2 !important"
+      },
+      ".tok-punctuation, .tok-operator": {
+        color: "#b9bec8 !important"
+      },
+      ".tok-comment": {
+        color: "#8b949e !important",
+        fontStyle: "italic"
+      },
+      ".tok-invalid": {
+        color: "#ff5555 !important",
+        textDecoration: "underline"
       }
     }, { dark: true });
+  }
+  function createHighlightStyle() {
+    return HighlightStyle.define([
+      { tag: tags.keyword, color: "#ffb86c" },
+      { tag: [tags.atom, tags.bool], color: "#ffb86c" },
+      { tag: [tags.number, tags.integer, tags.float], color: "#f1fa8c" },
+      { tag: tags.string, color: "#8be9a8" },
+      { tag: tags.escape, color: "#ff79c6" },
+      { tag: [tags.variableName, tags.propertyName, tags.attributeName], color: "#f8f8f2" },
+      { tag: tags.definitionKeyword, color: "#bd93f9" },
+      { tag: [tags.separator, tags.punctuation], color: "#b9bec8" },
+      { tag: tags.comment, color: "#8b949e", fontStyle: "italic" },
+      { tag: tags.invalid, color: "#ff5555", textDecoration: "underline" }
+    ]);
   }
   function createYamlEditor(options) {
     const parent = options.parent;
     const doc2 = options.doc || "";
     const entities = options.entities || [];
     const onSave = options.onSave;
+    function diagnostics(state) {
+      const errors = [];
+      syntaxTree(state).iterate({ enter(node) {
+        if (!node.type.isError) return;
+        const line = state.doc.lineAt(node.from);
+        errors.push({ from: node.from, to: node.to, severity: "error", message: `YAML-Fehler in Zeile ${line.number}, Spalte ${node.from - line.from + 1}` });
+      } });
+      return errors;
+    }
+    function reportPosition(state) {
+      const pos = state.selection.main.head;
+      const line = state.doc.lineAt(pos);
+      options.onPosition?.(line.number, pos - line.from + 1);
+    }
     const view = new EditorView({
       parent,
       state: EditorState.create({
@@ -24763,7 +24886,13 @@
         extensions: [
           basicSetup,
           yaml(),
+          indentUnit.of("  "),
+          linter((v) => diagnostics(v.state)),
+          EditorView.updateListener.of((update) => {
+            if (update.selectionSet || update.docChanged) reportPosition(update.state);
+          }),
           createTheme(),
+          syntaxHighlighting(createHighlightStyle(), { fallback: true }),
           EditorView.lineWrapping,
           autocompletion({ override: [entityCompletion(entities)] }),
           Prec.high(keymap.of([
@@ -24781,7 +24910,14 @@
         ]
       })
     });
+    reportPosition(view.state);
     return {
+      search() {
+        openSearchPanel(view);
+      },
+      validate() {
+        return diagnostics(view.state);
+      },
       focus() {
         view.focus();
       },
@@ -24800,6 +24936,6 @@
   }
   window.ElementPositionerYamlEditor = {
     create: createYamlEditor,
-    version: "0.29.7"
+    version: "0.29.8"
   };
 })();

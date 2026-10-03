@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.29.8] - 2026-10-03
+
+### Added
+- Support for picture-elements cards in sections views, including screen visibility rules
+- YAML editor fullscreen mode, search/replace button, cursor position and syntax error feedback
+
+### Fixed
+- Conditional elements resize using their configured bounds instead of a nearby element
+- Edge and corner handles adjust width and height independently while preserving the opposite edge
+- Repeated resizing works after Home Assistant replaces the card DOM
+- Clicking another element or empty space clears the previous selection; obsolete resize listeners are removed
+- Invalid or zero-size geometry cannot be saved
+- YAML editor keyboard navigation and editing no longer trigger Positioner shortcuts
+
+### Changed
+- Active Resize and Snap controls are orange
+- Removed the conditional toggle from the hoverbar because resizing works without it
+
 ## [0.29.7] - 2026-05-03
 
 ### Added
