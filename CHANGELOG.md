@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.29.9] - 2026-10-07
+
+### Fixed
+- Select the rendered picture-elements card in iPad portrait and conditional views.
+- Respect screen visibility inside nested stacks and conditional cards.
+- Match rotated labels by their configured anchor; prevent selection of distant neighbours.
+- Keep editor handles anchored to configured coordinates.
+- Avoid duplicate registration when the frontend resource has a version query.
+
 ## [0.29.8] - 2026-10-03
 
 ### Added

@@ -68,3 +68,31 @@ test('resolves a conditional wrapper inside a visible section', () => {
   assert.equal(found.card, picture);
   assert.equal(getCardByPath({ views: [view] }, 0, found.path), picture);
 });
+
+test('selects portrait card visibility inside a vertical stack', () => {
+ const landscape={type:'picture-elements',visibility:[{condition:'screen',media_query:'(min-aspect-ratio: 1/1)'}]};
+ const portrait={type:'picture-elements',visibility:[{condition:'screen',media_query:'(max-aspect-ratio: 999/1000)'}]};
+ const view={cards:[{type:'vertical-stack',cards:[landscape,portrait]}]};
+ const {getPicElsCard}=lookupFor(['(max-aspect-ratio: 999/1000)']);
+ assert.equal(getPicElsCard(view).card,portrait);
+});
+
+test('skips a landscape conditional wrapper when portrait is active', () => {
+ const landscape={type:'picture-elements'};
+ const portrait={type:'picture-elements'};
+ const view={cards:[{type:'conditional',conditions:[{condition:'screen',media_query:'landscape'}],card:landscape},{type:'conditional',conditions:[{condition:'screen',media_query:'portrait'}],card:portrait}]};
+ assert.equal(lookupFor(['portrait']).getPicElsCard(view).card,portrait);
+});
+
+
+test('uses the rendered iPad card when multiple screen conditions match', () => {
+  const horizontal = { type: 'picture-elements', image: '/local/h.png', elements: [] };
+  const ipad = { type: 'picture-elements', image: '/local/v.png', elements: [{ name: 'iPad Pro' }] };
+  const root = { getRootNode: () => ({ host: { _config: ipad } }) };
+  const window = { matchMedia: () => ({ matches: true }) };
+  const lookup = new Function('window', 'getActiveRoot',
+    `${source.slice(start, end)}; return getPicElsCard;`)(window, () => root);
+  const found = lookup({ cards: [{ type: 'horizontal-stack', cards: [horizontal, ipad] }] });
+  assert.equal(found.card, ipad);
+  assert.deepEqual(found.path, [0, 'cards', 1]);
+});

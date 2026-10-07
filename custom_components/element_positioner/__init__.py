@@ -63,7 +63,7 @@ async def _async_ensure_lovelace_resource(hass: HomeAssistant, url: str) -> None
             if res_col is not None and hasattr(res_col, "async_create_item"):
                 await res_col.async_load()
                 current_urls = {item.get("url", "") for item in res_col.async_items()}
-                if url not in current_urls:
+                if not any(current.split("?", 1)[0] == url.split("?", 1)[0] for current in current_urls):
                     await res_col.async_create_item({"res_type": "module", "url": url})
                     _LOGGER.info("Lovelace-Resource registriert (live): %s", url)
                 else:

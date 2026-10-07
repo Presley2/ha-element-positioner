@@ -1,4 +1,4 @@
-// HA Drag Editor 0.29.8 — CodeMirror YAML editor, Safari/iPad absolute overlay positioning
+// HA Drag Editor 0.29.9 — CodeMirror YAML editor, Safari/iPad absolute overlay positioning
 (function () {
   'use strict';
   if (window.__haDragEditorBooted) {
@@ -6,7 +6,7 @@
     return;
   }
   window.__haDragEditorBooted = true;
-  console.log('%c[HA-Drag-Editor] 0.29.8 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
+  console.log('%c[HA-Drag-Editor] 0.29.9 loaded — ' + new Date().toISOString(), 'background:#0a0;color:#fff;padding:2px 6px;border-radius:3px;font-weight:bold');
 
   var STORAGE_KEY = 'ha_drag_editor';
   var globalActive = null;
@@ -173,7 +173,7 @@
     if (window.__elementPositionerYamlEditorLoading) return window.__elementPositionerYamlEditorLoading;
     window.__elementPositionerYamlEditorLoading = new Promise(function (resolve, reject) {
       var script = document.createElement('script');
-      script.src = '/element_positioner_static/yaml_editor.bundle.js?v=0.29.8';
+      script.src = '/element_positioner_static/yaml_editor.bundle.js?v=0.29.9';
       script.async = true;
       script.onload = function () {
         if (window.ElementPositionerYamlEditor) resolve(window.ElementPositionerYamlEditor);
@@ -335,7 +335,18 @@
     var targetX = leftPct / 100 * rr.width;
     var targetY = topPct / 100 * rr.height;
     var children = root.children;
+    // Match the configured anchor before measuring transformed bounds. Rotation
+    // changes the bounding box and must not redirect a label to a neighbour.
+    for (var j = 0; j < children.length; j++) {
+      var node = children[j], style = node.style || {};
+      var cs0 = window.getComputedStyle(node);
+      if (!cs0 || cs0.display === 'none' || cs0.visibility === 'hidden' || cs0.opacity === '0') continue;
+      if (String(style.top).endsWith('%') && String(style.left).endsWith('%') &&
+          Math.abs(parseFloat(style.top) - topPct) < 0.05 &&
+          Math.abs(parseFloat(style.left) - leftPct) < 0.05) return node;
+    }
     var best = null, bestDist = Infinity;
+    var maxDistPct = opts.maxDistPct == null ? 3 : opts.maxDistPct;
     for (var i = 0; i < children.length; i++) {
       var c = children[i];
       // Skip background image (vollflächig)
@@ -353,8 +364,8 @@
       var cy = (cr.top - rr.top) + cr.height / 2;
       var dx = cx - targetX, dy = cy - targetY;
       var d = dx * dx + dy * dy;
-      if (opts.maxDistPct) {
-        var maxPx = Math.max(rr.width, rr.height) * opts.maxDistPct / 100;
+      if (maxDistPct) {
+        var maxPx = Math.max(rr.width, rr.height) * maxDistPct / 100;
         if (d > maxPx * maxPx) continue;
       }
       if (d < bestDist) { bestDist = d; best = c; }
@@ -424,8 +435,20 @@
   }
 
   function getPicElsCard(view) {
+    var candidates = [];
+    function matchesScreen(conditions) {
+      return !conditions || conditions.every(function (condition) {
+        return condition.condition !== 'screen' || !condition.media_query ||
+          !window.matchMedia || window.matchMedia(condition.media_query).matches;
+      });
+    }
     function searchCard(card, path) {
-      if (card.type === 'picture-elements') return { card: card, path: path };
+      if (!matchesScreen(card.visibility)) return null;
+      if (card.type === 'conditional' && !matchesScreen(card.conditions)) return null;
+      if (card.type === 'picture-elements') {
+        candidates.push({ card: card, path: path });
+        return null;
+      }
       if (card.cards) {
         var nested = search(card.cards, path.concat(['cards']));
         if (nested) return nested;
@@ -456,7 +479,21 @@
         if (found) return found;
       }
     }
-    return search(view.cards, []);
+    search(view.cards, []);
+    // Bind the configuration to the rendered card, rather than independently
+    // taking the first matching configuration and the largest DOM root.
+    var root = typeof getActiveRoot === 'function' ? getActiveRoot() : null;
+    var host = root && root.getRootNode && root.getRootNode().host;
+    var rendered = host && (host._config || host.config);
+    if (rendered) {
+      var signature = JSON.stringify(rendered.elements || []);
+      for (var c = 0; c < candidates.length; c++) {
+        var candidate = candidates[c];
+        if (candidate.card.image === rendered.image &&
+            JSON.stringify(candidate.card.elements || []) === signature) return candidate;
+      }
+    }
+    return candidates[0] || null;
   }
 
   function getCardByPath(cfg, viewIdx, path) {
@@ -1652,12 +1689,6 @@
         var r = getRect(); if (!r) return;
         var sx = window.pageXOffset || document.documentElement.scrollLeft || 0;
         var sy = window.pageYOffset || document.documentElement.scrollTop  || 0;
-        if (h._targetDom && document.contains(h._targetDom)) {
-          var dr = h._targetDom.getBoundingClientRect();
-          h.style.left = (sx + dr.left + dr.width / 2 + stackOffsetPx) + 'px';
-          h.style.top  = (sy + dr.top  + dr.height / 2 + stackOffsetPx) + 'px';
-          return;
-        }
         h.style.left = (sx + r.left + lPct / 100 * r.width + stackOffsetPx) + 'px';
         h.style.top  = (sy + r.top  + tPct / 100 * r.height + stackOffsetPx) + 'px';
       }
@@ -1771,7 +1802,7 @@
         });
 
         var activeRoot = getActiveRoot();
-        var activeDom = h._targetDom || findDomElByPos(activeRoot, tPct, lPct, isConditional ? { maxDistPct: 3 } : {});
+        var activeDom = isConditional ? null : (h._targetDom || findDomElByPos(activeRoot, tPct, lPct));
 
         globalActive = {
           h: h, idx: idx, name: name, dom: activeDom,
